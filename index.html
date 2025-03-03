@@ -1,0 +1,2456 @@
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <title>CYB3SC4P3</title>
+  <style>
+    body { margin: 0; overflow: hidden; background: #000; }
+    #info {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      z-index: 100;
+      background: rgba(0, 0, 0, 0.8);
+      color: #00ffff;
+      padding: 5px;
+      font-family: monospace;
+      display: none;
+    }
+    #reticle {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 5px;
+      height: 5px;
+      background: rgba(255, 0, 0, 0.5);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 100;
+      display: none;
+    }
+    #killCount {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 100;
+      background: rgba(0,0,0,0.8);
+      color: #ff00ff;
+      padding: 5px;
+      font-family: monospace;
+      display: none;
+    }
+    #killCount.pulse {
+      animation: colorPulse 1s infinite;
+    }
+    @keyframes colorPulse {
+      0% { color: #ffffff; }    /* White */
+      50% { color: #ff0000; }   /* Red */
+      100% { color: #ffffff; }  /* Back to white */
+    }
+    #intro {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 64px;
+      font-family: monospace;
+      text-align: center;
+      color: red;
+      z-index: 200;
+      opacity: 1;
+    }
+    #intro.loading { animation: colorCycle 9s infinite; }
+    #intro.loaded { animation: colorCycle 9s infinite; }
+    #intro.fade-out { animation: fadeOut 3s forwards; }
+    #gameOver {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 42px;
+      font-family: monospace;
+      color: red;
+      z-index: 300;
+      display: none;
+      background: rgba(0, 0, 0, 0.8);
+      padding: 20px;
+      border-radius: 5px;
+    }
+    #message {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 20px;
+      font-family: monospace;
+      color: #ff00ff;
+      z-index: 200;
+      opacity: 0;
+      text-align: center;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 10px;
+      border-radius: 5px;
+      transition: opacity 0.5s;
+    }
+    #hitIndicator {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(255, 0, 0, 0.7);
+      opacity: 0;
+      pointer-events: none;
+      z-index: 150;
+    }
+    #noiseOverlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: none;
+      pointer-events: none;
+      z-index: 250;
+    }
+    #controls {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 10;
+      display: none;
+    }
+    .joystick, .control-button {
+      pointer-events: auto;
+    }
+    .joystick {
+      position: absolute;
+      bottom: 20px;
+      width: 225px;
+      height: 225px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.2);
+      touch-action: none;
+    }
+    #left-joystick {
+      left: 20px;
+    }
+    #right-joystick {
+      right: 20px;
+    }
+    #fly-button {
+      position: absolute;
+      right: 20px;
+      top: 33%;
+      transform: translateY(-50%);
+      width: 60px;
+      height: 60px;
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+      text-align: center;
+      line-height: 60px;
+      border-radius: 50%;
+      touch-action: none;
+    }
+    #map-button {
+      position: absolute;
+      left: 20px;
+      top: 33%;
+      transform: translateY(-50%);
+      width: 60px;
+      height: 60px;
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+      text-align: center;
+      line-height: 60px;
+      border-radius: 50%;
+      touch-action: none;
+    }
+    .control-button {
+      width: 60px;
+      height: 60px;
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+      text-align: center;
+      line-height: 60px;
+      border-radius: 5px;
+      touch-action: none;
+    }
+    @keyframes colorCycle {
+      0% { filter: hue-rotate(0deg); }
+      50% { filter: hue-rotate(180deg); }
+      100% { filter: hue-rotate(360deg); }
+    }
+    @keyframes fadeOut {
+      0% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+    @keyframes blink {
+      0% { opacity: 0; }
+      50% { opacity: 0.5; }
+      100% { opacity: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div id="info">WASD to move, Mouse to look, F to hack, Left Click to breach, M to scan.</div>
+  <div id="killCount">BR34CH1NG: 0%</div>
+  <div id="intro">S3CUR1NG C0NN3CT10N...</div>
+  <div id="gameOver">C0NN3CT10N D34D</div>
+  <div id="message"></div>
+  <div id="hitIndicator"></div>
+  <div id="reticle"></div>
+  <canvas id="noiseOverlay"></canvas>
+  <div id="controls">
+    <div id="left-joystick" class="joystick"></div>
+    <div id="right-joystick" class="joystick"></div>
+    <div id="map-button" class="control-button">SC4N</div>
+    <div id="fly-button" class="control-button">H4CK</div>
+  </div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" integrity="sha512-dLxUelApnYxpLt6K2iomGngnHO83iUvZytA3YjDUCjT0HDOHKXnVYdf3hU4JjM8uEhxf9nD1/ey98U3t2vZ0qQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script>
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x040348);
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 10000);
+    camera.rotation.order = 'YXZ';
+    const playerHeight = 4;
+    const playerRadius = 0.25;
+    // Initial position will be set after cityBounds is calculated
+    camera.position.set(0, playerHeight, 0);
+    const birdCamera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 10000);
+    birdCamera.rotation.order = 'YXZ';
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+    directionalLight.position.set(100, 100, 100);
+    const ambientLight = new THREE.AmbientLight(0x404040);
+
+    const groundGeometry = new THREE.PlaneGeometry(10000, 10000);
+    const groundMaterial = new THREE.MeshPhongMaterial({ color: 0x080808, side: THREE.DoubleSide });
+    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    ground.rotation.x = -Math.PI / 2;
+
+    const sunGeometry = new THREE.SphereGeometry(20, 32, 32);
+    const sunMaterial = new THREE.MeshPhongMaterial({ color: 0xffff00, emissive: 0xffff00, emissiveIntensity: 1 });
+    const sun = new THREE.Mesh(sunGeometry, sunMaterial);
+    sun.position.set(500, 500, -1000);
+
+    const baseLat = 53.89;
+    const baseLon = 27.55;
+    const metersPerLat = 111320;
+    const metersPerLon = 111320 * Math.cos(baseLat * Math.PI / 180);
+    function latLonToXY(lat, lon) {
+      const x = (lon - baseLon) * metersPerLon;
+      const y = (lat - baseLat) * metersPerLat;
+      return { x: -x, y };
+    }
+
+    let font = null;
+    const fontLoader = new THREE.FontLoader();
+    fontLoader.load(
+      'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/fonts/droid/droid_sans_regular.typeface.json',
+      (loadedFont) => { font = loadedFont; },
+      undefined,
+      (error) => { console.error("Font loading failed:", error); }
+    );
+
+    let carsToBreach = 60;
+
+    const buildings = [];
+    const roads = [];
+    let cars = [];
+    let pedestrians = [];
+    let neonAds = [];
+    let explosions = [];
+    let airplanes = [];
+    let cityBounds = new THREE.Box3();
+    let wallParticleSystems = [];
+    let walls = [];
+
+    let killCount = 0;
+    function updateKillCount() {
+      const percentage = Math.min(100, Math.floor((killCount / carsToBreach) * 100));
+      document.getElementById("killCount").innerText = "BR34CH1NG: " + percentage + "%";
+      if (percentage >= 100 && !isDead) {
+        showVictoryScreen();
+      }
+    }
+
+    let playerHealth = 100;
+    let isDead = false;
+    let isVictorious = false;
+    let huntingPedestrians = 0;
+    const pedestrianElevation = 2.25;
+    const carElevation = 0.0;
+    const healthDisplay = document.createElement('div');
+    healthDisplay.id = 'health';
+    healthDisplay.style.position = 'absolute';
+    healthDisplay.style.top = '10px';
+    healthDisplay.style.left = '10px';
+    healthDisplay.style.zIndex = '100';
+    healthDisplay.style.background = 'rgba(0,0,0,0.8)';
+    healthDisplay.style.color = '#ff00ff';
+    healthDisplay.style.padding = '5px';
+    healthDisplay.style.fontFamily = 'monospace';
+    healthDisplay.style.display = 'none';
+    document.body.appendChild(healthDisplay);
+    healthDisplay.innerText = 'C0NN3CT3D: ' + playerHealth + '%';
+
+    const carGeometry = new THREE.BoxGeometry(9, 4.5, 3);
+    carGeometry.translate(0, 4.5 / 2, 0);
+
+    const pedTorsoGeometry = new THREE.CylinderGeometry(0.6, 0.8, 2.5, 8);
+    pedTorsoGeometry.translate(0, 1.25, 0);
+    const pedHeadGeometry = new THREE.SphereGeometry(0.5, 12, 12);
+    const pedArmUpperGeometry = new THREE.CylinderGeometry(0.25, 0.25, 1.25, 8);
+    const pedArmLowerGeometry = new THREE.CylinderGeometry(0.2, 0.2, 1.25, 8);
+    const pedLegUpperGeometry = new THREE.CylinderGeometry(0.35, 0.35, 1.5, 8);
+    const pedLegLowerGeometry = new THREE.CylinderGeometry(0.3, 0.3, 1.5, 8);
+    const pedEyeGeometry = new THREE.SphereGeometry(0.1, 8, 8);
+
+    const cyberpunkColors = [0xff0066, 0x00ffcc, 0x6600ff, 0xff6600, 0x00ff00];
+    const wallParticleColor = 0xffff99;
+
+    const airplaneGeometry = new THREE.BoxGeometry(4, 2, 10);
+    const airplaneMaterial = new THREE.MeshPhongMaterial({
+      color: 0xff00ff,
+      emissive: 0xff00ff,
+      emissiveIntensity: 0.9
+    });
+
+    const brandNames = [
+      "Apple", "Samsung", "Google", "Microsoft", "Amazon", "Meta",
+      "Tesla", "Intel", "NVIDIA", "IBM", "Sony", "Cisco", "HP",
+      "Dell", "Oracle", "Adobe", "Netflix", "SpaceX", "Huawei", "Lenovo"
+    ];
+
+    const playerLaserOriginX = 0;
+    const playerLaserOriginY = -0.5;
+    const playerLaserOriginZ = -1;
+
+    const pedLaserOriginX = 0.7;
+    const pedLaserOriginY = 1.5;
+    const pedLaserOriginZ = 0;
+
+    const moveSpeed = 1.35;
+    const shootingHitboxRadius = 1.0;
+    const numPedestrians = 150;
+    const numCars = 150;
+    const numAirplanes = 15;
+    const carSpeed = 1.35;
+    const airplaneSpeed = 0.45;
+    const airplaneAltitude = 300;
+    const pedestrianSpeed = 0.45;
+    const angryPedestrianSpeed = 0.75;
+    const pedestrianAccuracy = 0.5;
+    const pedestrianAlertDistance = 120;
+    const pedestrianShootingInterval = 30;
+    const pedestrianShootingRange = 120;
+    const carExplosionRadius = 30;
+    const wallHeight = 450;
+    const enableWallAnimation = true;
+    const wallParticleDensity = 4;
+
+    const flyModeMoveDrain = 0.025;  // Kill count drained per movement step
+    const flyModeTimeDrain = 0.25;    // Kill count drained per second
+
+    function spawnNeonAdsByBuildings() {
+      buildings.forEach(building => {
+        const box = building.userData.box;
+        if (!box) return;
+        const center = box.getCenter(new THREE.Vector3());
+        const size = box.getSize(new THREE.Vector3());
+        const textSize = Math.max(3, size.x / 20);
+        if (!font) return;
+        const brand = brandNames[Math.floor(Math.random() * brandNames.length)];
+        const textGeo = new THREE.TextGeometry(brand, {
+          font: font,
+          size: textSize,
+          height: textSize / 3,
+          curveSegments: 2
+        });
+        textGeo.center();
+        textGeo.computeBoundingBox();
+        const halfHeight = textGeo.boundingBox.max.y;
+        const adPosition = new THREE.Vector3(center.x, box.max.y + halfHeight + 10, center.z);
+        const textMaterial = new THREE.MeshPhongMaterial({
+          color: cyberpunkColors[Math.floor(Math.random() * cyberpunkColors.length)],
+          emissive: cyberpunkColors[Math.floor(Math.random() * cyberpunkColors.length)],
+          emissiveIntensity: 1
+        });
+        const textMesh = new THREE.Mesh(textGeo, textMaterial);
+        textMesh.position.copy(adPosition);
+        textMesh.rotation.y = Math.random() * Math.PI * 2;
+        scene.add(textMesh);
+        neonAds.push(textMesh);
+      });
+    }
+
+    const overpassQuery = `
+      [out:json][timeout:25];
+      (
+        way["highway"](53.893374,27.541376,53.907147,27.570987);
+        way["building"](53.893374,27.541376,53.907147,27.570987);
+        way["waterway"](53.893374,27.541376,53.907147,27.570987);
+      );
+      (._;>;);
+      out body;
+    `;
+
+    let sceneLoaded = false;
+    const introDiv = document.getElementById('intro');
+    introDiv.classList.add('loading');
+    let dotCount = 1;
+    const dotCycle = setInterval(() => {
+      dotCount = (dotCount % 3) + 1;
+      introDiv.innerText = "S3CUR1NG C0NN3CT10N" + ".".repeat(dotCount);
+    }, 500);
+
+    const buildingHeightMin = 25;
+    const buildingHeightMax = 75;
+
+    function findSafeSpawnPosition(center) {
+      let spawnPos = center.clone();
+      spawnPos.y = playerHeight;
+      let isSafe = false;
+      let attempts = 0;
+      const maxAttempts = 50;
+      const stepDistance = 10;
+
+      while (!isSafe && attempts < maxAttempts) {
+        const raycaster = new THREE.Raycaster(spawnPos, new THREE.Vector3(0, -1, 0), 0, playerHeight + 1);
+        const intersects = raycaster.intersectObjects(buildings, true);
+        isSafe = intersects.length === 0 || intersects[0].distance > playerHeight;
+
+        if (!isSafe) {
+          const angle = Math.random() * Math.PI * 2;
+          spawnPos.x = center.x + Math.cos(angle) * stepDistance * attempts;
+          spawnPos.z = center.z + Math.sin(angle) * stepDistance * attempts;
+          attempts++;
+        }
+      }
+
+      if (!isSafe) {
+        console.warn("Could not find a safe spawn position after max attempts. Using center as fallback.");
+        spawnPos = center.clone();
+        spawnPos.y = playerHeight;
+      }
+      return spawnPos;
+    }
+
+    fetch("https://overpass-api.de/api/interpreter", {
+      method: "POST",
+      body: overpassQuery
+    })
+      .then(response => response.json())
+      .then(data => {
+        const nodes = {};
+        data.elements.forEach(el => { if (el.type === "node") nodes[el.id] = el; });
+        data.elements.forEach(el => {
+          if (el.type === "way") {
+            const points = [];
+            el.nodes.forEach(id => {
+              const node = nodes[id];
+              if (node) {
+                const coord = latLonToXY(node.lat, node.lon);
+                points.push(new THREE.Vector3(coord.x, 0, coord.y));
+              }
+            });
+            const isClosed = (points.length > 2 && points[0].distanceTo(points[points.length - 1]) < 1);
+            if (el.tags) {
+              if (el.tags.highway) {
+                const streetMaterial = new THREE.LineBasicMaterial({ color: 0x111111 });
+                const streetGeometry = new THREE.BufferGeometry().setFromPoints(points);
+                const streetLine = new THREE.Line(streetGeometry, streetMaterial);
+                streetLine.position.y = 0.01;
+                scene.add(streetLine);
+                const neonMaterial = new THREE.LineBasicMaterial({ color: cyberpunkColors[Math.floor(Math.random() * cyberpunkColors.length)] });
+                const neonLine = new THREE.Line(streetGeometry, neonMaterial);
+                neonLine.position.y = 0.02;
+                scene.add(neonLine);
+                roads.push({ points: points, name: el.tags.name || "" });
+                if (el.tags.name) {
+                  const addLabel = () => {
+                    if (!font) { setTimeout(addLabel, 200); return; }
+                    const midIndex = Math.floor(points.length / 2);
+                    const midPoint = points[midIndex];
+                    const nextPoint = points[midIndex + 1] || points[midIndex - 1];
+                    const direction = nextPoint ? new THREE.Vector3().subVectors(nextPoint, midPoint).normalize() : new THREE.Vector3(1, 0, 0);
+                    const angle = Math.atan2(direction.z, direction.x);
+                    const textGeo = new THREE.TextGeometry(el.tags.name, {
+                      font: font, size: 1, height: 0.5, curveSegments: 2
+                    });
+                    const textMaterial = new THREE.MeshPhongMaterial({
+                      color: cyberpunkColors[Math.floor(Math.random() * cyberpunkColors.length)],
+                      emissive: cyberpunkColors[Math.floor(Math.random() * cyberpunkColors.length)],
+                      emissiveIntensity: 0.7
+                    });
+                    const textMesh = new THREE.Mesh(textGeo, textMaterial);
+                    textMesh.position.set(midPoint.x, 0.02, midPoint.z);
+                    textMesh.rotation.y = -angle;
+                    scene.add(textMesh);
+                  };
+                  addLabel();
+                }
+              } else if (el.tags.building && isClosed) {
+                const shapePoints = points.map(p => new THREE.Vector2(p.x, p.z));
+                const shape = new THREE.Shape(shapePoints);
+                const buildingHeight = buildingHeightMin + Math.random() * (buildingHeightMax - buildingHeightMin);
+                const extrudeSettings = { 
+                  steps: 1, 
+                  depth: buildingHeight, 
+                  bevelEnabled: false 
+                };
+                const buildingGeometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+                const buildingMaterial = new THREE.MeshPhongMaterial({
+                  color: 0x111111,
+                  emissive: cyberpunkColors[Math.floor(Math.random() * cyberpunkColors.length)],
+                  emissiveIntensity: 0.5
+                });
+                const buildingMesh = new THREE.Mesh(buildingGeometry, buildingMaterial);
+                buildingMesh.rotation.x = Math.PI / 2;
+                buildingMesh.position.y = buildingHeight;
+                scene.add(buildingMesh);
+                buildings.push(buildingMesh);
+                const box = new THREE.Box3().setFromObject(buildingMesh);
+                buildingMesh.userData.box = box;
+                cityBounds.union(box);
+              } else if (el.tags.waterway) {
+                const riverMaterial = new THREE.LineBasicMaterial({ color: 0x0000ff, linewidth: 15 });
+                const riverGeometry = new THREE.BufferGeometry().setFromPoints(points);
+                const riverLine = new THREE.Line(riverGeometry, riverMaterial);
+                riverLine.position.y = 0;
+                scene.add(riverLine);
+              }
+            }
+          }
+        });
+        spawnCars();
+        spawnNeonAdsByBuildings();
+        spawnPedestrians();
+
+        const wallThickness = 5;
+        const wallBuffer = 10;
+        const wallMaterial = new THREE.MeshBasicMaterial({ visible: false });
+
+        const xSize = (cityBounds.max.x - cityBounds.min.x) + wallBuffer * 2;
+        const zSize = (cityBounds.max.z - cityBounds.min.z) + wallBuffer * 2;
+
+        const northWallGeo = new THREE.BoxGeometry(xSize, wallHeight, wallThickness);
+        const northWall = new THREE.Mesh(northWallGeo, wallMaterial);
+        northWall.position.set(
+          cityBounds.min.x + (xSize - wallBuffer * 2) / 2,
+          wallHeight / 2,
+          cityBounds.max.z + wallBuffer + wallThickness / 2
+        );
+        scene.add(northWall);
+        buildings.push(northWall);
+        walls.push(northWall);
+
+        const southWallGeo = new THREE.BoxGeometry(xSize, wallHeight, wallThickness);
+        const southWall = new THREE.Mesh(southWallGeo, wallMaterial);
+        southWall.position.set(
+          cityBounds.min.x + (xSize - wallBuffer * 2) / 2,
+          wallHeight / 2,
+          cityBounds.min.z - wallBuffer - wallThickness / 2
+        );
+        scene.add(southWall);
+        buildings.push(southWall);
+        walls.push(southWall);
+
+        const eastWallGeo = new THREE.BoxGeometry(wallThickness, wallHeight, zSize);
+        const eastWall = new THREE.Mesh(eastWallGeo, wallMaterial);
+        eastWall.position.set(
+          cityBounds.max.x + wallBuffer + wallThickness / 2,
+          wallHeight / 2,
+          cityBounds.min.z + (zSize - wallBuffer * 2) / 2
+        );
+        scene.add(eastWall);
+        buildings.push(eastWall);
+        walls.push(eastWall);
+
+        const westWallGeo = new THREE.BoxGeometry(wallThickness, wallHeight, zSize);
+        const westWall = new THREE.Mesh(westWallGeo, wallMaterial);
+        westWall.position.set(
+          cityBounds.min.x - wallBuffer - wallThickness / 2,
+          wallHeight / 2,
+          cityBounds.min.z + (zSize - wallBuffer * 2) / 2
+        );
+        scene.add(westWall);
+        buildings.push(westWall);
+        walls.push(westWall);
+
+        function addParticleSystemToWall(wall, direction) {
+          if (!enableWallAnimation) return;
+          const spacing = 5;
+          const particleCountBase = direction === 'x' ? 
+            Math.floor(wall.geometry.parameters.width / spacing) : 
+            Math.floor(wall.geometry.parameters.depth / spacing);
+          
+          const particleCount = Math.floor(particleCountBase * wallParticleDensity * 0.5);
+          const positions = new Float32Array(particleCount * 3);
+          const speeds = new Float32Array(particleCount);
+          const baseYs = new Float32Array(particleCount);
+
+          for (let i = 0; i < particleCount; i++) {
+            let x, z;
+            if (direction === 'x') {
+              x = wall.position.x - wall.geometry.parameters.width / 2 + (i % particleCountBase) * spacing;
+              z = wall.position.z;
+            } else {
+              x = wall.position.x;
+              z = wall.position.z - wall.geometry.parameters.depth / 2 + (i % particleCountBase) * spacing;
+            }
+            const y = Math.random() * wallHeight * 0.3;
+            positions[i * 3] = x;
+            positions[i * 3 + 1] = y;
+            positions[i * 3 + 2] = z;
+            speeds[i] = 1 + Math.random() * 2;
+            baseYs[i] = y;
+          }
+
+          const geometry = new THREE.BufferGeometry();
+          geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+          const material = new THREE.PointsMaterial({
+            color: wallParticleColor,
+            size: 0.5,
+            transparent: false
+          });
+          
+          const particleSystem = new THREE.Points(geometry, material);
+          particleSystem.userData = { speeds, baseYs, direction };
+          scene.add(particleSystem);
+          wallParticleSystems.push(particleSystem);
+        }
+
+        addParticleSystemToWall(northWall, 'x');
+        addParticleSystemToWall(southWall, 'x');
+        addParticleSystemToWall(eastWall, 'z');
+        addParticleSystemToWall(westWall, 'z');
+
+        spawnAirplanes();
+
+        // Set player spawn position at map center, outside buildings
+        const cityCenter = cityBounds.getCenter(new THREE.Vector3());
+        const safeSpawnPos = findSafeSpawnPosition(cityCenter);
+        camera.position.set(safeSpawnPos.x, safeSpawnPos.y, safeSpawnPos.z);
+
+        sceneLoaded = true;
+
+        clearInterval(dotCycle);
+        introDiv.classList.remove('loading');
+        introDiv.style.display = 'none';
+
+        const messageDiv = document.getElementById('message');
+        messageDiv.innerText = "C0NN3CT3D";
+        messageDiv.style.opacity = '0';
+        setTimeout(() => {
+          messageDiv.style.opacity = '0';
+          setTimeout(() => {
+            introDiv.innerText = "CYB3SC4P3";
+            introDiv.style.display = 'block';
+            introDiv.classList.add('loaded');
+            introDiv.classList.add('fade-out');
+            setTimeout(() => {
+              introDiv.style.display = 'none';
+              messageDiv.innerText = "Objective: Breach data transport to crack ICE";
+              messageDiv.style.opacity = '1';
+              setTimeout(() => {
+                messageDiv.style.opacity = '0';
+                setTimeout(() => {
+                  if (!isMobile) document.getElementById('info').style.display = 'block';
+                  document.getElementById('killCount').style.display = 'block';
+                  document.getElementById('health').style.display = 'block';
+                  document.getElementById('reticle').style.display = (!birdViewActive && !isDead && !isVictorious) ? 'block' : 'none';
+                  if (isMobile) document.getElementById('controls').style.display = 'block';
+                  scene.add(directionalLight);
+                  scene.add(ambientLight);
+                  scene.add(ground);
+                  scene.add(sun);
+                }, 1000);
+              }, 5000);
+            }, 3000);
+          }, 100);
+        }, 1000);
+      })
+      .catch(err => console.error("Overpass API error:", err));
+
+    const noiseTexture = document.createElement('canvas');
+    noiseTexture.width = 100;
+    noiseTexture.height = 100;
+    const ctx = noiseTexture.getContext('2d');
+    const imageData = ctx.createImageData(100, 100);
+    for (let i = 0; i < imageData.data.length; i += 4) {
+      const value = Math.random() * 255;
+      imageData.data[i] = value;
+      imageData.data[i + 1] = value;
+      imageData.data[i + 2] = value;
+      imageData.data[i + 3] = 255;
+    }
+    ctx.putImageData(imageData, 0, 0);
+
+    function showNoiseOverlay() {
+      const noiseOverlay = document.getElementById('noiseOverlay');
+      noiseOverlay.width = window.innerWidth;
+      noiseOverlay.height = window.innerHeight;
+      const overlayCtx = noiseOverlay.getContext('2d');
+      const imageData = overlayCtx.createImageData(noiseOverlay.width, noiseOverlay.height);
+      const data = imageData.data;
+      for (let i = 0; i < data.length; i += 4) {
+        const value = Math.random() * 255;
+        data[i] = value;
+        data[i + 1] = value;
+        data[i + 2] = value;
+        data[i + 3] = 255;
+      }
+      overlayCtx.putImageData(imageData, 0, 0);
+      noiseOverlay.style.display = 'block';
+      noiseOverlay.style.opacity = '0.5';
+    }
+
+    function spawnCars() {
+      let spawned = 0;
+      roads.forEach(road => {
+        if (road.points.length < 2 || spawned >= numCars) return;
+        let idx = Math.floor(Math.random() * (road.points.length - 1));
+        const startPos = road.points[idx];
+        const carMaterial = new THREE.MeshPhongMaterial({
+          color: 0x0a0a1a,
+          emissive: cyberpunkColors[Math.floor(Math.random() * cyberpunkColors.length)],
+          emissiveIntensity: 1.5
+        });
+        const car = new THREE.Mesh(carGeometry, carMaterial);
+        car.position.set(startPos.x, carElevation, startPos.z);
+        car.userData = {
+          type: "car",
+          road: road,
+          currentIndex: idx,
+          dir: Math.random() < 0.5 ? 1 : -1,
+          speed: carSpeed + Math.random() * 0.5,
+          baseSpeed: carSpeed + Math.random() * 0.5,
+          bounceVelocity: new THREE.Vector3()
+        };
+        let nextIdx = idx + car.userData.dir;
+        if (nextIdx >= 0 && nextIdx < road.points.length) {
+          const target = road.points[nextIdx];
+          const moveDir = new THREE.Vector3().subVectors(target, car.position).normalize();
+          car.rotation.y = Math.atan2(moveDir.x, moveDir.z) + Math.PI / 2;
+        }
+        cars.push(car);
+        scene.add(car);
+        spawned++;
+      });
+    }
+
+function spawnPedestrians() {
+    let spawned = 0;
+    const maxAttempts = 20;
+    
+    while (spawned < numPedestrians && roads.length > 0) {
+        const road = roads[Math.floor(Math.random() * roads.length)];
+        if (road.points.length < 2) continue;
+
+        let idx = Math.floor(Math.random() * (road.points.length - 1));
+        const pos = road.points[idx];
+        const next = road.points[idx + 1];
+        const segDir = new THREE.Vector3().subVectors(next, pos).normalize();
+        const perp = new THREE.Vector3(-segDir.z, 0, segDir.x);
+        const side = Math.random() < 0.5 ? 1 : -1;
+        const offsetPos = new THREE.Vector3().addVectors(pos, perp.multiplyScalar(5 * side));
+
+        if (offsetPos.x < cityBounds.min.x || offsetPos.x > cityBounds.max.x ||
+            offsetPos.z < cityBounds.min.z || offsetPos.z > cityBounds.max.z) {
+            continue;
+        }
+
+        let isSafe = false;
+        let attempts = 0;
+        let currentPos = offsetPos.clone();
+        while (!isSafe && attempts < maxAttempts) {
+            const raycaster = new THREE.Raycaster(
+                new THREE.Vector3(currentPos.x, pedestrianElevation + 2, currentPos.z),
+                new THREE.Vector3(0, -1, 0),
+                0,
+                pedestrianElevation + 3
+            );
+            const intersects = raycaster.intersectObjects(buildings, true);
+            isSafe = intersects.length === 0 || intersects[0].distance > pedestrianElevation + 1;
+
+            if (!isSafe) {
+                currentPos.add(perp.multiplyScalar(2 * side));
+                attempts++;
+            }
+        }
+
+        if (!isSafe) continue;
+
+        const bodyColors = [0x111133, 0x222244, 0x333355, 0x112233];
+        const headColors = [0xffcc99, 0xffaa77, 0xffddaa];
+        const chosenBodyColor = bodyColors[Math.floor(Math.random() * bodyColors.length)];
+        const chosenHeadColor = headColors[Math.floor(Math.random() * headColors.length)];
+
+        const pedMat = new THREE.MeshPhongMaterial({
+            color: chosenBodyColor,
+            emissive: 0x222255,
+            emissiveIntensity: 0.8
+        });
+        const torso = new THREE.Mesh(pedTorsoGeometry.clone(), pedMat);
+        torso.position.set(currentPos.x, pedestrianElevation, currentPos.z);
+
+        const headMat = new THREE.MeshPhongMaterial({ color: chosenHeadColor });
+        const head = new THREE.Mesh(pedHeadGeometry.clone(), headMat);
+        head.position.set(0, 2.5, 0);
+        torso.add(head);
+
+        const eyeMat = new THREE.MeshBasicMaterial({ 
+            color: cyberpunkColors[Math.floor(Math.random() * cyberpunkColors.length)], 
+            transparent: true, 
+            opacity: 0.7 
+        });
+        const leftEye = new THREE.Mesh(pedEyeGeometry.clone(), eyeMat);
+        leftEye.position.set(0.15, 0.25, 0.3);
+        head.add(leftEye);
+        const rightEye = new THREE.Mesh(pedEyeGeometry.clone(), eyeMat);
+        rightEye.position.set(-0.15, 0.25, 0.3);
+        head.add(rightEye);
+
+        const armMat = new THREE.MeshPhongMaterial({ color: chosenBodyColor });
+        const leftUpperArm = new THREE.Mesh(pedArmUpperGeometry.clone(), armMat);
+        leftUpperArm.position.set(0.7, 1.25, 0);
+        leftUpperArm.userData = { isArm: true, isLeft: true };
+        torso.add(leftUpperArm);
+        const leftLowerArm = new THREE.Mesh(pedArmLowerGeometry.clone(), armMat);
+        leftLowerArm.position.set(0, -1.25, 0);
+        leftUpperArm.add(leftLowerArm);
+
+        const rightUpperArm = new THREE.Mesh(pedArmUpperGeometry.clone(), armMat);
+        rightUpperArm.position.set(-0.7, 1.25, 0);
+        rightUpperArm.userData = { isArm: true, isLeft: false };
+        torso.add(rightUpperArm);
+        const rightLowerArm = new THREE.Mesh(pedArmLowerGeometry.clone(), armMat);
+        rightLowerArm.position.set(0, -1.25, 0);
+        rightUpperArm.add(rightLowerArm);
+
+        const legMat = new THREE.MeshPhongMaterial({ color: chosenBodyColor });
+        const torsoBottomY = -0.5;
+        const upperLegHeight = 1;
+        const lowerLegHeight = 1;
+
+        const leftUpperLeg = new THREE.Mesh(pedLegUpperGeometry.clone(), legMat);
+        leftUpperLeg.position.set(0.35, torsoBottomY, 0);
+        leftUpperLeg.userData = { isLeg: true, isLeft: true };
+        torso.add(leftUpperLeg);
+        const leftLowerLeg = new THREE.Mesh(pedLegLowerGeometry.clone(), legMat);
+        leftLowerLeg.position.set(0, -(upperLegHeight / 2) - (lowerLegHeight / 2), 0);
+        leftUpperLeg.add(leftLowerLeg);
+
+        const rightUpperLeg = new THREE.Mesh(pedLegUpperGeometry.clone(), legMat);
+        rightUpperLeg.position.set(-0.35, torsoBottomY, 0);
+        rightUpperLeg.userData = { isLeg: true, isLeft: false };
+        torso.add(rightUpperLeg);
+        const rightLowerLeg = new THREE.Mesh(pedLegLowerGeometry.clone(), legMat);
+        rightLowerLeg.position.set(0, -(upperLegHeight / 2) - (lowerLegHeight / 2), 0);
+        rightUpperLeg.add(rightLowerLeg);
+
+        const augmentationGeo = new THREE.BoxGeometry(0.2, 0.2, 0.2);
+        const augmentationMat = new THREE.MeshBasicMaterial({ 
+            color: cyberpunkColors[Math.floor(Math.random() * cyberpunkColors.length)], 
+            transparent: true, 
+            opacity: 0.7 
+        });
+        const augmentation1 = new THREE.Mesh(augmentationGeo, augmentationMat);
+        augmentation1.position.set(0.3, 2.5, 0.3);
+        torso.add(augmentation1);
+        const augmentation2 = new THREE.Mesh(augmentationGeo, augmentationMat);
+        augmentation2.position.set(-0.3, 2.5, -0.3);
+        torso.add(augmentation2);
+
+        torso.userData = {
+            type: "pedestrian",
+            dir: new THREE.Vector3(Math.random() - 0.5, 0, Math.random() - 0.5).normalize(),
+            speed: pedestrianSpeed,
+            walkCycle: 0,
+            isAngry: false,
+            shootTimer: 0,
+            radius: 1.5,
+            bounceVelocity: new THREE.Vector3(),
+            stuckTimer: 0,
+            lastPosition: currentPos.clone()
+        };
+        pedestrians.push(torso);
+        scene.add(torso);
+        spawned++;
+    }
+}
+
+
+    function spawnAirplanes() {
+      for (let i = 0; i < numAirplanes; i++) {
+        const airplane = new THREE.Mesh(airplaneGeometry, airplaneMaterial);
+        airplane.position.set(
+          cityBounds.min.x + Math.random() * (cityBounds.max.x - cityBounds.min.x),
+          airplaneAltitude,
+          cityBounds.min.z + Math.random() * (cityBounds.max.z - cityBounds.min.z)
+        );
+        airplane.rotation.y = Math.random() * Math.PI * 2;
+        airplane.userData = {
+          type: "airplane",
+          speed: airplaneSpeed + Math.random(),
+          direction: new THREE.Vector3(Math.sin(airplane.rotation.y), 0, Math.cos(airplane.rotation.y))
+        };
+        airplanes.push(airplane);
+        scene.add(airplane);
+      }
+    }
+
+    function chooseNewRoad(obj, distance) {
+      const currentPos = obj.position;
+      let candidates = roads.filter(r => r !== obj.userData.road).map(r => {
+        return r.points.map((pt, idx) => ({ road: r, index: idx, dir: Math.random() < 0.5 ? 1 : -1 }))
+          .filter(c => c.road.points[c.index].distanceTo(currentPos) < distance);
+      }).flat();
+      return candidates.length > 0 ? candidates[Math.floor(Math.random() * candidates.length)] : null;
+    }
+
+// Updated checkBuildingCollisions function to handle walls separately
+function checkBuildingCollisions(currentPos, nextPos, radius = playerRadius, isPlayer = false) {
+    const direction = new THREE.Vector3().subVectors(nextPos, currentPos).normalize();
+    const distance = currentPos.distanceTo(nextPos);
+    const raycaster = new THREE.Raycaster(currentPos, direction, 0, distance + radius);
+    
+    const regularBuildings = buildings.filter(b => !walls.includes(b));
+    const wallIntersects = raycaster.intersectObjects(walls, true);
+    const buildingIntersects = raycaster.intersectObjects(regularBuildings, true);
+
+    if (isPlayer && isFreeFly) {
+        if (wallIntersects.length > 0 && wallIntersects[0].distance <= distance) {
+            const collisionPoint = wallIntersects[0].point;
+            const normal = wallIntersects[0].face.normal.clone().applyQuaternion(wallIntersects[0].object.quaternion).normalize();
+            const moveVector = nextPos.clone().sub(currentPos);
+            const projection = moveVector.dot(normal);
+            const slideVector = moveVector.sub(normal.multiplyScalar(projection));
+            const resolvedPos = currentPos.clone().add(slideVector);
+            return { x: resolvedPos.x, z: resolvedPos.z };
+        }
+        return { x: nextPos.x, z: nextPos.z };
+    } else {
+        const intersects = wallIntersects.length > 0 && (!buildingIntersects.length || wallIntersects[0].distance < buildingIntersects[0].distance) 
+            ? wallIntersects 
+            : buildingIntersects;
+
+        if (intersects.length > 0 && intersects[0].distance <= distance) {
+            const collisionPoint = intersects[0].point;
+            const normal = intersects[0].face.normal.clone().applyQuaternion(intersects[0].object.quaternion).normalize();
+            const moveVector = nextPos.clone().sub(currentPos);
+            const projection = moveVector.dot(normal);
+            const slideVector = moveVector.sub(normal.multiplyScalar(projection));
+            const resolvedPos = currentPos.clone().add(slideVector);
+            
+            const recheckRay = new THREE.Raycaster(resolvedPos, direction, 0, radius);
+            const recheckIntersects = recheckRay.intersectObjects(buildings, true);
+            if (recheckIntersects.length > 0 && recheckIntersects[0].distance < radius) {
+                return { x: currentPos.x, z: currentPos.z };
+            }
+            return { x: resolvedPos.x, z: resolvedPos.z };
+        }
+        return { x: nextPos.x, z: nextPos.z };
+    }
+}
+
+function findPathAroundBuilding(ped, targetPos) {
+    const currentPos = ped.position.clone();
+    const directDir = new THREE.Vector3().subVectors(targetPos, currentPos).normalize();
+    const step = ped.userData.speed;
+    
+    // Check if stuck
+    const movementDelta = currentPos.distanceTo(ped.userData.lastPosition);
+    if (movementDelta < ped.userData.speed * 0.2) {
+        ped.userData.stuckTimer += 1;
+        if (ped.userData.stuckTimer > 15) { // Reduced threshold to react faster
+            const randomDir = new THREE.Vector3(Math.random() - 0.5, 0, Math.random() - 0.5).normalize();
+            const unstuckPos = currentPos.clone().add(randomDir.multiplyScalar(ped.userData.speed * 2));
+            const unstuckCheck = checkBuildingCollisions(currentPos, unstuckPos, ped.userData.radius);
+            const unstuckVector = new THREE.Vector3(unstuckCheck.x, ped.position.y, unstuckCheck.z);
+            
+            if (unstuckVector.x !== currentPos.x || unstuckVector.z !== currentPos.z) {
+                ped.userData.dir = randomDir;
+                ped.userData.stuckTimer = 0;
+                return randomDir.multiplyScalar(ped.userData.speed);
+            }
+        }
+    } else {
+        ped.userData.stuckTimer = 0;
+    }
+
+    // Check direct path
+    const forwardRay = new THREE.Raycaster(currentPos, directDir, 0, ped.userData.radius * 4); // Increased range for earlier detection
+    const intersects = forwardRay.intersectObjects(buildings, true);
+
+    if (intersects.length > 0 && intersects[0].distance < ped.userData.radius * 4) {
+        // Obstacle ahead - navigate around it
+        const normal = intersects[0].face.normal.clone().applyQuaternion(intersects[0].object.quaternion).normalize();
+        const perpDir = new THREE.Vector3(-normal.z, 0, normal.x).normalize();
+        
+        // Choose direction to go around the building towards the target
+        const leftDir = perpDir;
+        const rightDir = perpDir.clone().multiplyScalar(-1);
+        
+        const leftTestPos = currentPos.clone().add(leftDir.multiplyScalar(step * 2));
+        const rightTestPos = currentPos.clone().add(rightDir.multiplyScalar(step * 2));
+        
+        const leftDistToTarget = leftTestPos.distanceTo(targetPos);
+        const rightDistToTarget = rightTestPos.distanceTo(targetPos);
+        
+        let chosenDir = leftDistToTarget < rightDistToTarget ? leftDir : rightDir;
+        
+        // Check if chosen direction is clear for a longer distance
+        const chosenRay = new THREE.Raycaster(currentPos, chosenDir, 0, ped.userData.radius * 4);
+        const chosenIntersects = chosenRay.intersectObjects(buildings, true);
+        
+        if (chosenIntersects.length > 0 && chosenIntersects[0].distance < ped.userData.radius * 2) {
+            // If chosen direction is blocked soon, try the opposite
+            chosenDir = chosenDir === leftDir ? rightDir : leftDir;
+            const altRay = new THREE.Raycaster(currentPos, chosenDir, 0, ped.userData.radius * 4);
+            const altIntersects = altRay.intersectObjects(buildings, true);
+            
+            if (altIntersects.length > 0 && altIntersects[0].distance < ped.userData.radius * 2) {
+                // Both sides blocked, turn away from obstacle
+                chosenDir = normal.clone().multiplyScalar(-1);
+            }
+        }
+        
+        ped.userData.dir = chosenDir;
+        const nextPos = currentPos.clone().add(chosenDir.multiplyScalar(step));
+        ped.userData.lastPosition.copy(nextPos);
+        return chosenDir.multiplyScalar(ped.userData.speed);
+    }
+
+    // Direct path is clear
+    const nextPos = currentPos.clone().add(directDir.multiplyScalar(step));
+    ped.userData.dir = directDir;
+    ped.userData.lastPosition.copy(nextPos);
+    return directDir.multiplyScalar(ped.userData.speed);
+}
+
+
+
+    function createExplosion(x, y, z) {
+      const explosionGeo = new THREE.SphereGeometry(5, 8, 8);
+      const explosionMat = new THREE.MeshBasicMaterial({ color: 0xff0000, transparent: true, opacity: 0.8 });
+      const explosion = new THREE.Mesh(explosionGeo, explosionMat);
+      explosion.position.set(x, y, z);
+      explosion.userData.startTime = performance.now();
+      scene.add(explosion);
+      explosions.push(explosion);
+      playExplosionSound();
+
+      pedestrians = pedestrians.filter(ped => {
+        const d = ped.position.distanceTo(new THREE.Vector3(x, ped.position.y, z));
+        if (d < carExplosionRadius) {
+          createPedestrianExplosion(ped.position.x, ped.position.y, ped.position.z);
+          scene.remove(ped);
+          return false;
+        }
+        return true;
+      });
+    }
+
+    function createPedestrianExplosion(x, y, z) {
+      const explosionGeo = new THREE.SphereGeometry(2, 8, 8);
+      const explosionMat = new THREE.MeshBasicMaterial({ color: 0xff0000, transparent: true, opacity: 0.8 });
+      const explosion = new THREE.Mesh(explosionGeo, explosionMat);
+      explosion.position.set(x, y, z);
+      explosion.userData.startTime = performance.now();
+      scene.add(explosion);
+      explosions.push(explosion);
+      playExplosionSound();
+
+      const distanceToPlayer = camera.position.distanceTo(new THREE.Vector3(x, y, z));
+      if (distanceToPlayer < 10 && !isDead) {
+        playerHealth -= 10;
+        healthDisplay.innerText = 'C0NN3CT3D: ' + playerHealth + '%';
+        const hitIndicator = document.getElementById('hitIndicator');
+        hitIndicator.style.animation = 'blink 0.5s';
+        setTimeout(() => { hitIndicator.style.animation = ''; }, 500);
+        if (playerHealth <= 0 && !isDead) {
+          showDeathScreen();
+        }
+      }
+    }
+
+    function checkCarCollisions() {
+      const collisionThreshold = 6;
+      for (let i = 0; i < cars.length; i++) {
+        for (let j = i + 1; j < cars.length; j++) {
+          if (cars[i] && cars[j] && cars[i].position.distanceTo(cars[j].position) < collisionThreshold) {
+            const dirI = cars[i].userData.dir;
+            const dirJ = cars[j].userData.dir;
+            cars[i].userData.dir = -dirI;
+            cars[j].userData.dir = -dirJ;
+
+            const avoidDir = new THREE.Vector3().subVectors(cars[i].position, cars[j].position).normalize();
+            cars[i].userData.bounceVelocity.add(avoidDir.multiplyScalar(1));
+            cars[j].userData.bounceVelocity.add(avoidDir.multiplyScalar(-1));
+
+            cars[i].userData.speed = cars[i].userData.baseSpeed;
+            cars[j].userData.speed = cars[j].userData.baseSpeed;
+
+            const nextIdxI = cars[i].userData.currentIndex + cars[i].userData.dir;
+            if (nextIdxI >= 0 && nextIdxI < cars[i].userData.road.points.length) {
+              const targetI = cars[i].userData.road.points[nextIdxI];
+              const moveDirI = new THREE.Vector3().subVectors(targetI, cars[i].position).normalize();
+              cars[i].rotation.y = Math.atan2(moveDirI.x, moveDirI.z) + Math.PI / 2;
+            }
+            const nextIdxJ = cars[j].userData.currentIndex + cars[j].userData.dir;
+            if (nextIdxJ >= 0 && nextIdxJ < cars[j].userData.road.points.length) {
+              const targetJ = cars[j].userData.road.points[nextIdxJ];
+              const moveDirJ = new THREE.Vector3().subVectors(targetJ, cars[j].position).normalize();
+              cars[j].rotation.y = Math.atan2(moveDirJ.x, moveDirJ.z) + Math.PI / 2;
+            }
+          }
+        }
+      }
+
+      for (let i = 0; i < cars.length; i++) {
+        const d = camera.position.distanceTo(cars[i].position);
+        if (d < collisionThreshold) {
+          const hitDir = new THREE.Vector3().subVectors(camera.position, cars[i].position).normalize();
+          camera.position.add(hitDir.multiplyScalar(2));
+          playerHealth -= 1;
+          healthDisplay.innerText = 'C0NN3CT3D: ' + playerHealth + '%';
+          if (playerHealth <= 0 && !isDead) {
+            showDeathScreen();
+          }
+        }
+      }
+    }
+
+    let birdViewActive = false;
+    window.addEventListener('keydown', (e) => {
+      if (!sceneLoaded || isDead || isVictorious) return;
+      if (e.key.toLowerCase() === 'm') {
+        birdViewActive = !birdViewActive;
+        if (isMobile) document.getElementById('map-button').style.background = birdViewActive ? 'rgba(255, 255, 255, 0.4)' : 'rgba(255, 255, 255, 0.2)';
+        updateReticleVisibility();
+      }
+    });
+    window.addEventListener('mousedown', (e) => {
+      if (!sceneLoaded || isDead || isVictorious || e.button !== 0 || document.pointerLockElement !== document.body) return;
+      shoot();
+    });
+    document.addEventListener('click', () => {
+      if (!sceneLoaded || isDead || isVictorious) return;
+      document.body.requestPointerLock();
+    });
+
+    function distanceToRay(rayOrigin, rayDirection, point) {
+      const v = point.clone().sub(rayOrigin);
+      const d = v.dot(rayDirection);
+      if (d < 0) return point.distanceTo(rayOrigin);
+      const closestPoint = rayOrigin.clone().add(rayDirection.clone().multiplyScalar(d));
+      return point.distanceTo(closestPoint);
+    }
+
+    function showMessage(text) {
+      const messageDiv = document.getElementById('message');
+      messageDiv.innerText = text;
+      messageDiv.style.opacity = '1';
+      setTimeout(() => { messageDiv.style.opacity = '0'; }, 3000);
+    }
+
+    function showDeathScreen() {
+      isDead = true;
+      birdViewActive = true;
+      document.getElementById('reticle').style.display = 'none';
+      document.getElementById('gameOver').style.display = 'block';
+      if (isMobile) document.getElementById('controls').style.display = 'none';
+      showNoiseOverlay();
+
+      stopCyberpunkMusic();
+
+      audioCtx.resume().then(() => {
+        const noiseTime = audioCtx.currentTime;
+        activeOscillators.forEach(osc => {
+          try { osc.stop(); } catch (e) {}
+        });
+        activeOscillators = [];
+
+        const bufferSize = audioCtx.sampleRate * 0.3;
+        const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let j = 0; j < bufferSize; j++) {
+          data[j] = (Math.random() * 2 - 1) * Math.exp(-j / (bufferSize * 0.5));
+        }
+        const noiseSource = audioCtx.createBufferSource();
+        noiseSource.buffer = buffer;
+        const noiseGain = audioCtx.createGain();
+        noiseGain.gain.setValueAtTime(1.0, noiseTime);
+        noiseGain.gain.exponentialRampToValueAtTime(0.001, noiseTime + 0.3);
+        noiseSource.connect(noiseGain).connect(audioCtx.destination);
+        noiseSource.start(noiseTime);
+        noiseSource.stop(noiseTime + 0.3);
+        activeOscillators.push(noiseSource);
+
+        const osc = audioCtx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(40, noiseTime);
+        osc.frequency.exponentialRampToValueAtTime(20, noiseTime + 1);
+        const oscGain = audioCtx.createGain();
+        oscGain.gain.setValueAtTime(0.8, noiseTime);
+        oscGain.gain.exponentialRampToValueAtTime(0.001, noiseTime + 1);
+        osc.connect(oscGain).connect(audioCtx.destination);
+        osc.start(noiseTime);
+        osc.stop(noiseTime + 1);
+        activeOscillators.push(osc);
+      }).catch(err => {
+        console.error("Failed to resume audio context for death sound:", err);
+      });
+    }
+
+function showVictoryScreen() {
+    isVictorious = true;
+    birdViewActive = true;
+    const gameOverDiv = document.getElementById('gameOver');
+    gameOverDiv.innerText = "1C3W4LL CR4CK3D";
+    gameOverDiv.style.color = '#00ff00';
+    gameOverDiv.style.border = '2px solid #00ff00';
+    gameOverDiv.style.display = 'block';
+    document.getElementById('reticle').style.display = 'none';
+    if (isMobile) document.getElementById('controls').style.display = 'none';
+
+    cars.forEach(car => {
+        createExplosion(car.position.x, car.position.y, car.position.z);
+        scene.remove(car);
+    });
+    cars = [];
+
+    pedestrians.forEach(ped => {
+        createPedestrianExplosion(ped.position.x, ped.position.y, ped.position.z);
+        scene.remove(ped);
+    });
+    pedestrians = [];
+
+    airplanes.forEach(airplane => {
+        scene.remove(airplane);
+    });
+    airplanes = [];
+
+    neonAds.forEach(ad => {
+        scene.remove(ad);
+    });
+    neonAds = [];
+
+    buildings.forEach(building => {
+        if (!walls.includes(building)) {
+            const wireframeMaterial = new THREE.MeshBasicMaterial({
+                color: building.material.emissive,
+                wireframe: true,
+                wireframeLinewidth: 2
+            });
+            building.material = wireframeMaterial;
+        }
+    });
+
+    walls.forEach(wall => {
+        wall.visible = false;
+    });
+    wallParticleSystems.forEach(system => {
+        system.visible = false;
+    });
+
+    stopCyberpunkMusic();
+
+    audioCtx.resume().then(() => {
+        playVictoryMusic();
+    }).catch(err => {
+        console.error("Failed to resume audio context for victory music:", err);
+    });
+}
+
+    function playLaserSound() {
+      const time = audioCtx.currentTime;
+      const osc = audioCtx.createOscillator();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(300, time);
+      osc.frequency.exponentialRampToValueAtTime(150, time + 0.1);
+      const gainNode = audioCtx.createGain();
+      gainNode.gain.setValueAtTime(0.8, time);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, time + 0.2);
+      osc.connect(gainNode).connect(audioCtx.destination);
+      osc.start(time);
+      osc.stop(time + 0.2);
+      activeOscillators.push(osc);
+    }
+
+    function playExplosionSound() {
+      const time = audioCtx.currentTime;
+
+      const bufferSize = audioCtx.sampleRate * 0.5;
+      const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.5));
+      }
+      const noiseSource = audioCtx.createBufferSource();
+      noiseSource.buffer = buffer;
+      const noiseGain = audioCtx.createGain();
+      noiseGain.gain.setValueAtTime(1.0, time);
+      noiseGain.gain.exponentialRampToValueAtTime(0.001, time + 0.5);
+      noiseSource.connect(noiseGain).connect(audioCtx.destination);
+      noiseSource.start(time);
+      noiseSource.stop(time + 0.5);
+      activeOscillators.push(noiseSource);
+
+      const osc = audioCtx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(60, time);
+      const oscGain = audioCtx.createGain();
+      oscGain.gain.setValueAtTime(0.8, time);
+      oscGain.gain.exponentialRampToValueAtTime(0.001, time + 0.5);
+      osc.connect(oscGain).connect(audioCtx.destination);
+      osc.start(time);
+      osc.stop(time + 0.5);
+      activeOscillators.push(osc);
+    }
+
+    function playVictoryMusic() {
+      const startTime = audioCtx.currentTime;
+
+      const bassNotes = [55, 58, 62, 65];
+      for (let i = 0; i < 4; i++) {
+        const noteTime = startTime + i * 0.5;
+        const osc = audioCtx.createOscillator();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(bassNotes[i % bassNotes.length], noteTime);
+        const gainNode = audioCtx.createGain();
+        gainNode.gain.setValueAtTime(0.8, noteTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, noteTime + 0.5);
+        osc.connect(gainNode).connect(audioCtx.destination);
+        osc.start(noteTime);
+        osc.stop(noteTime + 0.5);
+        activeOscillators.push(osc);
+      }
+
+      const arpNotes = [330, 392, 440, 494];
+      for (let i = 0; i < 16; i++) {
+        const noteTime = startTime + i * 0.125;
+        const osc = audioCtx.createOscillator();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(arpNotes[i % arpNotes.length], noteTime);
+        const gainNode = audioCtx.createGain();
+        gainNode.gain.setValueAtTime(0.6, noteTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, noteTime + 0.125);
+        osc.connect(gainNode).connect(audioCtx.destination);
+        osc.start(noteTime);
+        osc.stop(noteTime + 0.125);
+        activeOscillators.push(osc);
+      }
+
+      const chord = [220, 261.63, 329.63];
+      chord.forEach(freq => {
+        const osc = audioCtx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, startTime);
+        const gainNode = audioCtx.createGain();
+        gainNode.gain.setValueAtTime(0.5, startTime);
+        gainNode.gain.linearRampToValueAtTime(0.5, startTime + 1);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + 2);
+        osc.connect(gainNode).connect(audioCtx.destination);
+        osc.start(startTime);
+        osc.stop(startTime + 2);
+        activeOscillators.push(osc);
+      });
+    }
+
+// Updated shoot function to allow shooting through buildings in fly mode
+// Updated shoot function to only allow shooting through wireframe buildings
+function shoot() {
+    playLaserSound();
+    const forwardDir = camera.getWorldDirection(new THREE.Vector3());
+    const localOffset = new THREE.Vector3(playerLaserOriginX, playerLaserOriginY, playerLaserOriginZ);
+    const worldOffset = localOffset.clone().applyQuaternion(camera.quaternion);
+    const origin = camera.position.clone().add(worldOffset);
+    const rayDirection = forwardDir;
+    const raycaster = new THREE.Raycaster(origin, rayDirection);
+    const targets = cars.concat(pedestrians);
+    const targetIntersects = raycaster.intersectObjects(targets, true);
+    const regularBuildings = buildings.filter(b => !walls.includes(b));
+    const buildingIntersects = raycaster.intersectObjects(regularBuildings, true);
+
+    let laserEndPoint;
+    let hitTarget = null;
+
+    if (isFreeFly) {
+        // Find the currently wireframe building (if any)
+        const aimedRaycaster = new THREE.Raycaster(camera.position, forwardDir);
+        const aimedIntersects = aimedRaycaster.intersectObjects(regularBuildings, true);
+        let wireframeBuilding = null;
+        if (aimedIntersects.length > 0) {
+            let aimedObj = aimedIntersects[0].object;
+            while (aimedObj.parent && buildings.indexOf(aimedObj) === -1) {
+                aimedObj = aimedObj.parent;
+            }
+            if (buildings.includes(aimedObj) && aimedObj.material instanceof THREE.MeshBasicMaterial && aimedObj.material.wireframe) {
+                wireframeBuilding = aimedObj;
+            }
+        }
+
+        if (buildingIntersects.length > 0) {
+            const firstBuilding = buildingIntersects[0].object;
+            let buildingMesh = firstBuilding;
+            while (buildingMesh.parent && buildings.indexOf(buildingMesh) === -1) {
+                buildingMesh = buildingMesh.parent;
+            }
+            
+            // Only allow shooting through if it's the wireframe building
+            if (buildingMesh === wireframeBuilding) {
+                if (targetIntersects.length > 0 && 
+                    (targetIntersects[0].distance > buildingIntersects[0].distance || targetIntersects[0].distance < 1000)) {
+                    laserEndPoint = targetIntersects[0].point;
+                    hitTarget = targetIntersects[0].object;
+                } else {
+                    laserEndPoint = origin.clone().add(rayDirection.multiplyScalar(1000));
+                }
+            } else {
+                // Shot blocked by solid building
+                laserEndPoint = buildingIntersects[0].point;
+            }
+        } else if (targetIntersects.length > 0) {
+            laserEndPoint = targetIntersects[0].point;
+            hitTarget = targetIntersects[0].object;
+        } else {
+            laserEndPoint = origin.clone().add(rayDirection.multiplyScalar(1000));
+        }
+    } else {
+        // Normal mode: buildings block shots
+        if (buildingIntersects.length > 0 && (targetIntersects.length === 0 || buildingIntersects[0].distance < targetIntersects[0].distance)) {
+            laserEndPoint = buildingIntersects[0].point;
+        } else if (targetIntersects.length > 0) {
+            laserEndPoint = targetIntersects[0].point;
+            hitTarget = targetIntersects[0].object;
+        } else {
+            laserEndPoint = origin.clone().add(rayDirection.multiplyScalar(1000));
+        }
+    }
+
+    const direction = new THREE.Vector3().subVectors(laserEndPoint, origin).normalize();
+    const length = origin.distanceTo(laserEndPoint);
+    const midpoint = new THREE.Vector3().addVectors(origin, direction.clone().multiplyScalar(length / 2));
+    const laserGeometry = new THREE.CylinderGeometry(0.2, 0.2, length, 8);
+    const laserMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+    const laser = new THREE.Mesh(laserGeometry, laserMaterial);
+    laser.position.copy(midpoint);
+    const quaternion = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction);
+    laser.setRotationFromQuaternion(quaternion);
+    scene.add(laser);
+    setTimeout(() => scene.remove(laser), 500);
+
+    if (hitTarget) {
+        let obj = hitTarget;
+        while (obj && !obj.userData.type && obj.parent) obj = obj.parent;
+        if (obj && ["car", "pedestrian"].includes(obj.userData.type)) {
+            const hitPosition = obj.position.clone();
+            let newlyAngry = 0;
+
+            if (obj.userData.type === "car") {
+                scene.remove(obj);
+                const idx = cars.indexOf(obj);
+                if (idx > -1) cars.splice(idx, 1);
+                createExplosion(obj.position.x, obj.position.y, obj.position.z);
+                killCount += 1;
+                updateKillCount();
+                pedestrians.forEach(ped => {
+                    if (ped.position.distanceTo(hitPosition) < pedestrianAlertDistance && !ped.userData.isAngry) {
+                        ped.userData.isAngry = true;
+                        ped.userData.shootTimer = 0;
+                        newlyAngry++;
+                    }
+                });
+            } else if (obj.userData.type === "pedestrian") {
+                pedestrians.forEach(ped => {
+                    if (ped !== obj && ped.position.distanceTo(hitPosition) < pedestrianAlertDistance && !ped.userData.isAngry) {
+                        ped.userData.isAngry = true;
+                        ped.userData.shootTimer = 0;
+                        newlyAngry++;
+                    }
+                });
+                scene.remove(obj);
+                const idx = pedestrians.indexOf(obj);
+                if (idx > -1) pedestrians.splice(idx, 1);
+                createPedestrianExplosion(obj.position.x, obj.position.y, obj.position.z);
+                playerHealth = Math.min(100, playerHealth + 1);
+                healthDisplay.innerText = 'C0NN3CT3D: ' + playerHealth + '%';
+            }
+
+            if (newlyAngry > 0 && huntingPedestrians === 0) {
+                showMessage("Warning: Enforcers are tracing your connection");
+            }
+            huntingPedestrians += newlyAngry;
+        }
+    }
+}
+
+
+function updateTraffic() {
+    if (isVictorious) return;
+
+    // Update cars
+    cars.forEach(car => {
+        const road = car.userData.road;
+        if (!road || road.points.length < 2) return;
+        let idx = car.userData.currentIndex;
+        let dir = car.userData.dir;
+
+        car.position.add(car.userData.bounceVelocity);
+        car.userData.bounceVelocity.multiplyScalar(0.9);
+
+        let nextIdx = idx + dir;
+        if (nextIdx >= 0 && nextIdx < road.points.length) {
+            const target = road.points[nextIdx];
+            const moveDir = new THREE.Vector3().subVectors(target, car.position).normalize();
+            const distanceToTarget = car.position.distanceTo(target);
+            const step = Math.min(car.userData.speed, distanceToTarget);
+            car.position.add(moveDir.multiplyScalar(step));
+            car.rotation.y = Math.atan2(moveDir.x, moveDir.z) + Math.PI / 2;
+
+            if (distanceToTarget < 2) {
+                car.userData.currentIndex = nextIdx;
+            }
+        } else {
+            const candidate = chooseNewRoad(car, 15);
+            if (candidate) {
+                car.userData.road = candidate.road;
+                car.userData.currentIndex = candidate.index;
+                car.userData.dir = candidate.dir;
+            } else {
+                car.userData.dir *= -1;
+            }
+            nextIdx = car.userData.currentIndex + car.userData.dir;
+            if (nextIdx >= 0 && nextIdx < road.points.length) {
+                const target = road.points[nextIdx];
+                const moveDir = new THREE.Vector3().subVectors(target, car.position).normalize();
+                car.rotation.y = Math.atan2(moveDir.x, moveDir.z) + Math.PI / 2;
+            }
+        }
+
+        if (car.position.x <= cityBounds.min.x || car.position.x >= cityBounds.max.x ||
+            car.position.z <= cityBounds.min.z || car.position.z >= cityBounds.max.z) {
+            car.userData.dir *= -1;
+            nextIdx = car.userData.currentIndex + car.userData.dir;
+            if (nextIdx >= 0 && nextIdx < road.points.length) {
+                const target = road.points[nextIdx];
+                const moveDir = new THREE.Vector3().subVectors(target, car.position).normalize();
+                car.rotation.y = Math.atan2(moveDir.x, moveDir.z) + Math.PI / 2;
+            }
+            car.position.x = Math.max(cityBounds.min.x + 1, Math.min(cityBounds.max.x - 1, car.position.x));
+            car.position.z = Math.max(cityBounds.min.z + 1, Math.min(cityBounds.max.z - 1, car.position.z));
+        }
+
+        car.position.y = carElevation;
+    });
+
+    let prevHuntingCount = huntingPedestrians;
+    huntingPedestrians = 0;
+
+    // Update pedestrians
+    pedestrians = pedestrians.filter(ped => {
+        ped.position.add(ped.userData.bounceVelocity);
+        ped.userData.bounceVelocity.multiplyScalar(0.9);
+        ped.position.y = pedestrianElevation;
+
+        let moveDir;
+        if (ped.userData.isAngry && !isDead) {
+            ped.userData.speed = angryPedestrianSpeed;
+            moveDir = findPathAroundBuilding(ped, camera.position);
+        } else {
+            ped.userData.speed = pedestrianSpeed;
+            const currentPos = ped.position.clone();
+            moveDir = ped.userData.dir.clone().normalize();
+            const nextPos = currentPos.clone().add(moveDir.multiplyScalar(ped.userData.speed));
+            
+            // Check for obstacles ahead
+            const forwardRay = new THREE.Raycaster(currentPos, moveDir, 0, ped.userData.radius * 4);
+            const intersects = forwardRay.intersectObjects(buildings, true);
+
+            // Check if stuck or penetrating
+            const movementDelta = currentPos.distanceTo(ped.userData.lastPosition);
+            if (movementDelta < ped.userData.speed * 0.2) {
+                ped.userData.stuckTimer += 1;
+                if (ped.userData.stuckTimer > 10) { // Lowered threshold to react faster
+                    const randomDir = new THREE.Vector3(Math.random() - 0.5, 0, Math.random() - 0.5).normalize();
+                    const unstuckPos = currentPos.clone().add(randomDir.multiplyScalar(ped.userData.speed * 2));
+                    const unstuckCheck = checkBuildingCollisions(currentPos, unstuckPos, ped.userData.radius);
+                    const unstuckVector = new THREE.Vector3(unstuckCheck.x, ped.position.y, unstuckCheck.z);
+                    
+                    if (unstuckVector.x !== currentPos.x || unstuckVector.z !== currentPos.z) {
+                        ped.userData.dir = randomDir;
+                        ped.userData.stuckTimer = 0;
+                        moveDir = randomDir;
+                    }
+                }
+            } else {
+                ped.userData.stuckTimer = 0;
+            }
+
+            if (intersects.length > 0 && intersects[0].distance < ped.userData.radius * 4) {
+                const normal = intersects[0].face.normal.clone().applyQuaternion(intersects[0].object.quaternion).normalize();
+                const perpDir = new THREE.Vector3(-normal.z, 0, normal.x).normalize();
+                
+                const leftDir = perpDir;
+                const rightDir = perpDir.clone().multiplyScalar(-1);
+                const chosenDir = Math.random() < 0.5 ? leftDir : rightDir;
+                
+                const chosenRay = new THREE.Raycaster(currentPos, chosenDir, 0, ped.userData.radius * 4);
+                const chosenIntersects = chosenRay.intersectObjects(buildings, true);
+                
+                if (chosenIntersects.length > 0 && chosenIntersects[0].distance < ped.userData.radius * 2) {
+                    const altDir = chosenDir === leftDir ? rightDir : leftDir;
+                    const altRay = new THREE.Raycaster(currentPos, altDir, 0, ped.userData.radius * 4);
+                    const altIntersects = altRay.intersectObjects(buildings, true);
+                    
+                    if (altIntersects.length > 0 && altIntersects[0].distance < ped.userData.radius * 2) {
+                        moveDir = normal.clone().multiplyScalar(-1);
+                    } else {
+                        moveDir = altDir;
+                    }
+                } else {
+                    moveDir = chosenDir;
+                }
+                
+                ped.userData.dir = moveDir.clone().normalize();
+            }
+
+            moveDir.multiplyScalar(ped.userData.speed);
+            ped.userData.lastPosition.copy(nextPos);
+        }
+
+        // Pedestrian collision detection with other pedestrians
+        const collisionThreshold = ped.userData.radius * 2;
+        let hasCollided = false;
+        for (let otherPed of pedestrians) {
+            if (otherPed === ped) continue;
+            const distance = ped.position.distanceTo(otherPed.position);
+            if (distance < collisionThreshold) {
+                hasCollided = true;
+                const avoidDir = new THREE.Vector3().subVectors(ped.position, otherPed.position).normalize();
+                ped.userData.bounceVelocity.add(avoidDir.multiplyScalar(0.5));
+                otherPed.userData.bounceVelocity.add(avoidDir.multiplyScalar(-0.5));
+                const blendFactor = 0.3;
+                ped.userData.dir.lerp(avoidDir, blendFactor).normalize();
+                otherPed.userData.dir.lerp(avoidDir.clone().multiplyScalar(-1), blendFactor).normalize();
+                break;
+            }
+        }
+
+        // Enhanced collision resolution to prevent penetration
+        const oldPos = ped.position.clone();
+        const nextPos = oldPos.clone().add(moveDir);
+        const resolvedPos = checkBuildingCollisions(oldPos, nextPos, ped.userData.radius);
+        
+        // Additional check to ensure pedestrian isn't inside a building
+        const insideCheckRay = new THREE.Raycaster(resolvedPos, new THREE.Vector3(0, -1, 0), 0, pedestrianElevation + 2);
+        const insideIntersects = insideCheckRay.intersectObjects(buildings, true);
+        if (insideIntersects.length > 0 && insideIntersects[0].distance < ped.userData.radius) {
+            // Pedestrian is penetrating; push back along the reverse direction
+            const pushBackDir = moveDir.clone().normalize().multiplyScalar(-1);
+            ped.position.copy(oldPos).add(pushBackDir.multiplyScalar(ped.userData.radius));
+            ped.userData.dir = pushBackDir; // Reverse direction to avoid re-penetration
+        } else {
+            ped.position.x = resolvedPos.x;
+            ped.position.z = resolvedPos.z;
+        }
+
+        // Boundary clamping
+        ped.position.x = Math.max(cityBounds.min.x + ped.userData.radius * 2,
+            Math.min(cityBounds.max.x - ped.userData.radius * 2, ped.position.x));
+        ped.position.z = Math.max(cityBounds.min.z + ped.userData.radius * 2,
+            Math.min(cityBounds.max.z - ped.userData.radius * 2, ped.position.z));
+
+        const targetPos = ped.position.clone().add(moveDir);
+        ped.lookAt(targetPos.x, ped.position.y, targetPos.z);
+
+        let canMove = true;
+        cars.forEach(car => {
+            const d = ped.position.distanceTo(car.position);
+            if (d < 5) {
+                canMove = false;
+                const avoidDir = new THREE.Vector3().subVectors(ped.position, car.position).normalize();
+                ped.position.add(avoidDir.multiplyScalar(ped.userData.speed));
+                ped.userData.bounceVelocity.add(avoidDir.multiplyScalar(2));
+            }
+        });
+
+        const playerDist = ped.position.distanceTo(camera.position);
+        if (playerDist < 5) {
+            createPedestrianExplosion(ped.position.x, ped.position.y, ped.position.z);
+            scene.remove(ped);
+            return false;
+        }
+
+        if (canMove && !hasCollided) {
+            ped.userData.walkCycle += ped.userData.speed;
+            const swing = Math.sin(ped.userData.walkCycle);
+            ped.children.forEach(child => {
+                if (child.userData.isArm) {
+                    child.rotation.x = child.userData.isLeft ? -swing * 0.5 : swing * 0.5;
+                    if (child.children[0]) child.children[0].rotation.x = -swing * 0.3;
+                } else if (child.userData.isLeg) {
+                    child.rotation.x = (child.userData.isLeft ? 1 : -1) * swing * 0.5;
+                    if (child.children[0]) child.children[0].rotation.x = -swing * 0.3;
+                }
+            });
+        }
+
+        // Pedestrian shooting logic
+        if (ped.userData.isAngry && !isDead) {
+            huntingPedestrians++;
+            ped.userData.shootTimer += 1;
+            if (ped.userData.shootTimer >= pedestrianShootingInterval) {
+                ped.userData.shootTimer = 0;
+
+                // Calculate shooting origin and direction
+                const localOffset = new THREE.Vector3(pedLaserOriginX, pedLaserOriginY, pedLaserOriginZ);
+                const worldOffset = localOffset.clone().applyQuaternion(ped.quaternion);
+                const origin = ped.position.clone().add(worldOffset);
+                const direction = new THREE.Vector3().subVectors(camera.position, origin).normalize();
+                const distanceToPlayer = origin.distanceTo(camera.position);
+
+                // Check if player is out of range
+                if (distanceToPlayer > pedestrianShootingRange) return true;
+
+                // Check line-of-sight with all buildings (including walls)
+                const raycaster = new THREE.Raycaster(origin, direction);
+                const intersects = raycaster.intersectObjects(buildings, true); // Check all buildings, not just regularBuildings
+
+                // If any building blocks the shot and is closer than the player
+                if (intersects.length > 0 && intersects[0].distance < distanceToPlayer) {
+                    return true; // Shot blocked by a building
+                }
+
+                // Play laser sound and create laser visual
+                playLaserSound();
+                const laserEndOffset = 1.0;
+                const offsetDirection = direction.clone().multiplyScalar(-1);
+                const laserEndPoint = camera.position.clone().add(offsetDirection.multiplyScalar(laserEndOffset));
+                const laserLength = origin.distanceTo(laserEndPoint);
+                const midpoint = origin.clone().add(direction.clone().multiplyScalar(laserLength / 2));
+                const laserGeometry = new THREE.CylinderGeometry(0.2, 0.2, laserLength, 8);
+                const laserMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+                const laser = new THREE.Mesh(laserGeometry, laserMaterial);
+                laser.position.copy(midpoint);
+                const quaternion = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction);
+                laser.setRotationFromQuaternion(quaternion);
+                scene.add(laser);
+                setTimeout(() => scene.remove(laser), 500);
+
+                // Apply 70% hit chance for this shot
+                if (Math.random() < 0.7) {
+                    playerHealth -= 1;
+                    healthDisplay.innerText = 'C0NN3CT3D: ' + playerHealth + '%';
+                    const hitIndicator = document.getElementById('hitIndicator');
+                    hitIndicator.style.animation = 'blink 0.5s';
+                    setTimeout(() => { hitIndicator.style.animation = ''; }, 500);
+                    if (playerHealth <= 0 && !isDead) {
+                        showDeathScreen();
+                    }
+                }
+
+                // Alert nearby pedestrians
+                pedestrians.forEach(otherPed => {
+                    if (otherPed !== ped && !otherPed.userData.isAngry &&
+                        otherPed.position.distanceTo(ped.position) < pedestrianAlertDistance) {
+                        otherPed.userData.isAngry = true;
+                        otherPed.userData.shootTimer = 0;
+                        huntingPedestrians++;
+                    }
+                });
+            }
+        }
+        return true;
+    });
+
+    // Update hunting status messages
+    if (huntingPedestrians > 0 && prevHuntingCount === 0) {
+        showMessage("Warning: Enforcers are tracing your connection");
+    } else if (huntingPedestrians === 0 && prevHuntingCount > 0) {
+        showMessage("Alert: Enforcer tracing terminated");
+    }
+
+    checkCarCollisions();
+
+    // Update airplanes
+    airplanes.forEach(airplane => {
+        const moveDir = airplane.userData.direction.clone();
+        const step = airplane.userData.speed;
+        const nextPos = airplane.position.clone().add(moveDir.multiplyScalar(step));
+
+        if (airplane.position.x <= cityBounds.min.x || airplane.position.x >= cityBounds.max.x ||
+            airplane.position.z <= cityBounds.min.z || airplane.position.z >= cityBounds.max.z) {
+            airplane.userData.direction.multiplyScalar(-1);
+            airplane.rotation.y += Math.PI;
+            airplane.position.x = Math.max(cityBounds.min.x + 1, Math.min(cityBounds.max.x - 1, airplane.position.x));
+            airplane.position.z = Math.max(cityBounds.min.z + 1, Math.min(cityBounds.max.z - 1, airplane.position.z));
+        } else {
+            airplane.position.add(moveDir.multiplyScalar(step));
+        }
+
+        airplane.position.y = airplaneAltitude;
+    });
+}
+
+    function updateExplosions() {
+      const currentTime = performance.now();
+      for (let i = explosions.length - 1; i >= 0; i--) {
+        const explosion = explosions[i];
+        const elapsed = (currentTime - explosion.userData.startTime) / 1000;
+        explosion.scale.setScalar(1 + elapsed * 2);
+        explosion.material.opacity = Math.max(0, 0.8 - elapsed);
+        if (elapsed > 0.5) {
+          scene.remove(explosion);
+          explosions.splice(i, 1);
+        }
+      }
+    }
+
+    const isMobile = 'ontouchstart' in window;
+    const movementDirection = new THREE.Vector2(0, 0);
+    const lookingDirection = new THREE.Vector2(0, 0);
+    let movementTouchId = null;
+    let lookingTouchId = null;
+    let upPressed = false;
+    let downPressed = false;
+
+    const leftJoystick = document.getElementById('left-joystick');
+    const rightJoystick = document.getElementById('right-joystick');
+    const flyButton = document.getElementById('fly-button');
+    const mapButton = document.getElementById('map-button');
+
+    function updateJoystickDirection(touch, joystick, directionObj) {
+      const rect = joystick.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      const dx = touch.clientX - centerX;
+      const dy = touch.clientY - centerY;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      const maxDistance = rect.width / 2;
+      const normalizedDistance = Math.min(distance / maxDistance, 1);
+      const angle = Math.atan2(dy, dx);
+      directionObj.set(Math.cos(angle) * normalizedDistance, -Math.sin(angle) * normalizedDistance);
+    }
+
+    if (isMobile) {
+      function startMusicOnInteraction() {
+        if (!sceneLoaded || musicStarted || isDead) return;
+        startCyberpunkMusic();
+        musicStarted = true;
+      }
+
+      leftJoystick.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        if (movementTouchId === null && e.targetTouches.length > 0) {
+          const touch = e.targetTouches[0];
+          if (touch.identifier !== lookingTouchId) {
+            movementTouchId = touch.identifier;
+            updateJoystickDirection(touch, leftJoystick, movementDirection);
+            startMusicOnInteraction();
+          }
+        }
+      }, { passive: false });
+
+      rightJoystick.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        if (lookingTouchId === null && e.targetTouches.length > 0) {
+          const touch = e.targetTouches[0];
+          if (touch.identifier !== movementTouchId) {
+            lookingTouchId = touch.identifier;
+            updateJoystickDirection(touch, rightJoystick, lookingDirection);
+            startMusicOnInteraction();
+          }
+        }
+      }, { passive: false });
+      document.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        for (let i = 0; i < e.touches.length; i++) {
+          const touch = e.touches[i];
+          if (touch.identifier === movementTouchId) {
+            updateJoystickDirection(touch, leftJoystick, movementDirection);
+          } else if (touch.identifier === lookingTouchId) {
+            updateJoystickDirection(touch, rightJoystick, lookingDirection);
+          }
+        }
+      }, { passive: false });
+
+      document.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        for (let i = 0; i < e.changedTouches.length; i++) {
+          const touch = e.changedTouches[i];
+          if (touch.identifier === movementTouchId) {
+            movementTouchId = null;
+            movementDirection.set(0, 0);
+          }
+          if (touch.identifier === lookingTouchId) {
+            lookingTouchId = null;
+            lookingDirection.set(0, 0);
+            if (!sceneLoaded || isDead || isVictorious) return;
+            shoot();
+          }
+        }
+      }, { passive: false });
+
+        flyButton.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (!sceneLoaded || isDead || isVictorious) return;
+            if (killCount <= 0) {
+                showMessage("Insufficient breaches to hack");
+                return;
+            }
+            isFreeFly = !isFreeFly;
+            flyButton.style.background = isFreeFly ? 'rgba(255, 255, 255, 0.4)' : 'rgba(255, 255, 255, 0.2)';
+            if (!isFreeFly) {
+                camera.position.y = playerHeight;
+                pitch = 0;
+                camera.rotation.x = 0;
+            }
+            updateReticleVisibility();
+            startMusicOnInteraction();
+        }, { passive: false });
+      
+      mapButton.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        if (!sceneLoaded || isDead || isVictorious) return;
+        birdViewActive = !birdViewActive;
+        mapButton.style.background = birdViewActive ? 'rgba(255, 255, 255, 0.4)' : 'rgba(255, 255, 255, 0.2)';
+        updateReticleVisibility();
+        startMusicOnInteraction();
+      }, { passive: false });
+
+      [flyButton, mapButton].forEach(button => {
+        button.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+        button.addEventListener('touchcancel', (e) => {
+          e.preventDefault();
+          button.style.background = 'rgba(255, 255, 255, 0.2)';
+        }, { passive: false });
+      });
+    } else {
+      document.getElementById('controls').style.display = 'none';
+    }
+
+    const keys = {};
+    let yaw = 0;
+    let pitch = 0;
+    const rotationSpeed = 0.003;
+    let isFreeFly = false;
+
+    function updateReticleVisibility() {
+      const reticle = document.getElementById('reticle');
+      if (sceneLoaded && !isDead && !isVictorious && !birdViewActive) {
+        reticle.style.display = 'block';
+      } else {
+        reticle.style.display = 'none';
+      }
+    }
+
+   document.addEventListener('keydown', (e) => {
+       if (!sceneLoaded || isDead || isVictorious) return;
+       keys[e.key.toLowerCase()] = true;
+       if (e.key.toLowerCase() === 'f') {
+           if (killCount <= 0) {
+               showMessage("Insufficient breaches to hack");
+               return;
+           }
+           isFreeFly = !isFreeFly;
+           if (!isFreeFly) {
+               camera.position.y = playerHeight;
+               pitch = 0;
+               camera.rotation.x = 0;
+           }
+           updateReticleVisibility();
+       }
+   });
+
+
+    window.addEventListener('keyup', (e) => {
+      if (!sceneLoaded || isDead || isVictorious) return;
+      keys[e.key.toLowerCase()] = false;
+    });
+    window.addEventListener('mousemove', (e) => {
+      if (!sceneLoaded || isDead || isVictorious || document.pointerLockElement !== document.body) return;
+      yaw -= e.movementX * rotationSpeed;
+      pitch -= e.movementY * rotationSpeed;
+      pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, pitch));
+      camera.rotation.y = yaw;
+      camera.rotation.x = pitch;
+    });
+
+    let markerLaser = null;
+    function updateBirdViewMarker() {
+      if (birdViewActive && !isDead && !isVictorious) {
+        if (!markerLaser) {
+          const length = 10000;
+          const laserGeometry = new THREE.CylinderGeometry(5, 5, length, 8);
+          const laserMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+          markerLaser = new THREE.Mesh(laserGeometry, laserMaterial);
+          markerLaser.position.set(camera.position.x, 500, camera.position.z);
+          scene.add(markerLaser);
+        }
+        markerLaser.position.set(camera.position.x, 500, camera.position.z);
+      } else if (markerLaser) {
+        scene.remove(markerLaser);
+        markerLaser = null;
+      }
+    }
+
+// Updated animate function to make only aimed-at building transparent
+// Updated animate function to alert enforcers when flying
+function animate() {
+    requestAnimationFrame(animate);
+    const currentTime = performance.now();
+    const deltaTime = (currentTime - (animate.lastTime || currentTime)) / 1000; // Convert to seconds
+    animate.lastTime = currentTime;
+
+    if (!isDead && !isVictorious && sceneLoaded) updateTraffic();
+    if (sceneLoaded) updateExplosions();
+
+    neonAds.forEach(ad => ad.rotation.y += 0.01);
+
+    if (enableWallAnimation && !isVictorious) {
+        const cameraPos = camera.position;
+        wallParticleSystems.forEach(system => {
+            const positions = system.geometry.attributes.position.array;
+            const speeds = system.userData.speeds;
+            const baseYs = system.userData.baseYs;
+            
+            const distToWall = Math.min(cameraPos.distanceTo(system.position), 200);
+            const detailFactor = 1 - (distToWall / 200);
+            system.material.opacity = Math.max(0.2, detailFactor * 0.8);
+
+            for (let i = 0; i < positions.length / 3; i++) {
+                positions[i * 3 + 1] += speeds[i];
+                if (positions[i * 3 + 1] > wallHeight) {
+                    positions[i * 3 + 1] = baseYs[i];
+                }
+            }
+            system.geometry.attributes.position.needsUpdate = true;
+        });
+    }
+
+    const killCountElement = document.getElementById('killCount');
+
+    // Define forward and right vectors here so they're available in both fly and non-fly modes
+    const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+
+    if (isFreeFly) {
+        const raycaster = new THREE.Raycaster(camera.position, forward);
+        const regularBuildings = buildings.filter(b => !walls.includes(b));
+        const intersects = raycaster.intersectObjects(regularBuildings, true);
+
+        buildings.forEach(building => {
+            if (walls.includes(building)) return;
+            if (building.material instanceof THREE.MeshBasicMaterial && building.material.wireframe) {
+                building.material = new THREE.MeshPhongMaterial({
+                    color: 0x111111,
+                    emissive: building.material.color,
+                    emissiveIntensity: 0.5
+                });
+            }
+        });
+
+        if (intersects.length > 0) {
+            const aimedBuilding = intersects[0].object;
+            let buildingMesh = aimedBuilding;
+            while (buildingMesh.parent && buildings.indexOf(buildingMesh) === -1) {
+                buildingMesh = buildingMesh.parent;
+            }
+            if (buildings.includes(buildingMesh) && !walls.includes(buildingMesh)) {
+                if (!(buildingMesh.material instanceof THREE.MeshBasicMaterial) || !buildingMesh.material.wireframe) {
+                    const wireframeMaterial = new THREE.MeshBasicMaterial({
+                        color: buildingMesh.material.emissive,
+                        wireframe: true,
+                        wireframeLinewidth: 2
+                    });
+                    buildingMesh.material = wireframeMaterial;
+                }
+            }
+        }
+
+        // Alert nearby pedestrians when flying
+        let newlyAngry = 0;
+        pedestrians.forEach(ped => {
+            if (!ped.userData.isAngry && ped.position.distanceTo(camera.position) < pedestrianAlertDistance) {
+                ped.userData.isAngry = true;
+                ped.userData.shootTimer = 0;
+                newlyAngry++;
+            }
+        });
+        if (newlyAngry > 0) {
+            huntingPedestrians += newlyAngry;
+            if (huntingPedestrians === newlyAngry) {
+                showMessage("Warning: Enforcers are tracing your connection");
+            }
+        }
+
+        // Add pulse effect to kill count when flying
+        if (killCountElement) {
+            killCountElement.classList.add('pulse');
+        }
+
+        // Time-based killCount reduction
+        killCount = Math.max(0, killCount - flyModeTimeDrain * deltaTime);
+        updateKillCount();
+
+        // Movement-based killCount reduction
+        forward.y = 0; right.y = 0; forward.normalize(); right.normalize();
+        let deltaX = 0;
+        let deltaZ = 0;
+
+        if (isMobile) {
+            const moveDir = new THREE.Vector3();
+            moveDir.copy(forward).multiplyScalar(movementDirection.y);
+            moveDir.add(right.clone().multiplyScalar(movementDirection.x));
+            if (moveDir.length() > 0) {
+                moveDir.normalize();
+                killCount = Math.max(0, killCount - flyModeMoveDrain);
+                updateKillCount();
+            }
+            const movement = moveDir.multiplyScalar(moveSpeed);
+            deltaX = movement.x;
+            deltaZ = movement.z;
+        } else {
+            if (keys['w']) {
+                deltaX += forward.x * moveSpeed;
+                deltaZ += forward.z * moveSpeed;
+                killCount = Math.max(0, killCount - flyModeMoveDrain);
+                updateKillCount();
+            }
+            if (keys['s']) {
+                deltaX -= forward.x * moveSpeed;
+                deltaZ -= forward.z * moveSpeed;
+                killCount = Math.max(0, killCount - flyModeMoveDrain);
+                updateKillCount();
+            }
+            if (keys['a']) {
+                deltaX -= right.x * moveSpeed;
+                deltaZ -= right.z * moveSpeed;
+                killCount = Math.max(0, killCount - flyModeMoveDrain);
+                updateKillCount();
+            }
+            if (keys['d']) {
+                deltaX += right.x * moveSpeed;
+                deltaZ += right.z * moveSpeed;
+                killCount = Math.max(0, killCount - flyModeMoveDrain);
+                updateKillCount();
+            }
+        }
+
+        // Check if killCount is depleted
+        if (killCount <= 0) {
+            isFreeFly = false;
+            camera.position.y = playerHeight;
+            pitch = 0;
+            camera.rotation.x = 0;
+            showMessage("Insufficient breaches to hack");
+            flyButton.style.background = 'rgba(255, 255, 255, 0.2)';
+            updateReticleVisibility();
+        }
+
+        const currentPos = camera.position.clone();
+        const nextPos = new THREE.Vector3(
+            currentPos.x + deltaX,
+            playerHeight,
+            currentPos.z + deltaZ
+        );
+        const resolvedPos = checkBuildingCollisions(currentPos, nextPos, playerRadius, true);
+        camera.position.x = resolvedPos.x;
+        camera.position.z = resolvedPos.z;
+        camera.position.y = playerHeight;
+    } else if (!isVictorious) {
+        buildings.forEach(building => {
+            if (walls.includes(building)) return;
+            if (building.material instanceof THREE.MeshBasicMaterial && building.material.wireframe) {
+                building.material = new THREE.MeshPhongMaterial({
+                    color: 0x111111,
+                    emissive: building.material.color,
+                    emissiveIntensity: 0.5
+                });
+            }
+        });
+
+        if (killCountElement) {
+            killCountElement.classList.remove('pulse');
+        }
+
+        forward.y = 0; right.y = 0; forward.normalize(); right.normalize();
+        let deltaX = 0;
+        let deltaZ = 0;
+        if (isMobile) {
+            const moveDir = new THREE.Vector3();
+            moveDir.copy(forward).multiplyScalar(movementDirection.y);
+            moveDir.add(right.clone().multiplyScalar(movementDirection.x));
+            if (moveDir.length() > 0) moveDir.normalize();
+            const movement = moveDir.multiplyScalar(moveSpeed);
+            deltaX = movement.x;
+            deltaZ = movement.z;
+        } else {
+            if (keys['w']) { deltaX += forward.x * moveSpeed; deltaZ += forward.z * moveSpeed; }
+            if (keys['s']) { deltaX -= forward.x * moveSpeed; deltaZ -= forward.z * moveSpeed; }
+            if (keys['a']) { deltaX -= right.x * moveSpeed; deltaZ -= right.z * moveSpeed; }
+            if (keys['d']) { deltaX += right.x * moveSpeed; deltaZ += right.z * moveSpeed; }
+        }
+
+        const currentPos = camera.position.clone();
+        const nextPos = new THREE.Vector3(currentPos.x + deltaX, currentPos.y, currentPos.z + deltaZ);
+        const resolvedPos = checkBuildingCollisions(currentPos, nextPos);
+        camera.position.x = resolvedPos.x;
+        camera.position.z = resolvedPos.z;
+        camera.position.y = playerHeight;
+    }
+
+    if (!isDead && !isVictorious && sceneLoaded) {
+        if (isMobile) {
+            const lookSpeed = 0.1;
+            yaw -= lookingDirection.x * lookSpeed;
+            pitch += lookingDirection.y * lookSpeed;
+            pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, pitch));
+            camera.rotation.y = yaw;
+            camera.rotation.x = pitch;
+        }
+
+        updateBirdViewMarker();
+
+        if (birdViewActive) {
+            const cityCenter = cityBounds.getCenter(new THREE.Vector3());
+            const citySize = cityBounds.getSize(new THREE.Vector3());
+            const height = Math.max(citySize.x, citySize.z) * 0.75;
+            birdCamera.position.set(cityCenter.x, height, cityCenter.z);
+            birdCamera.lookAt(cityCenter.x, 0, cityCenter.z);
+            birdCamera.rotation.y += Math.PI;
+            renderer.render(scene, birdCamera);
+        } else {
+            renderer.render(scene, camera);
+        }
+    } else {
+        const cityCenter = cityBounds.getCenter(new THREE.Vector3());
+        const citySize = cityBounds.getSize(new THREE.Vector3());
+        const height = Math.max(citySize.x, citySize.z) * 0.75;
+        birdCamera.position.set(cityCenter.x, height, cityCenter.z);
+        birdCamera.lookAt(cityCenter.x, 0, cityCenter.z);
+        birdCamera.rotation.y += Math.PI;
+        renderer.render(scene, birdCamera);
+    }
+}
+
+animate.lastTime = performance.now();
+
+    animate();
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      birdCamera.aspect = window.innerWidth / window.innerHeight;
+      birdCamera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      if (isDead) {
+        showNoiseOverlay();
+      }
+    });
+
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const loopLength = 60;
+    let activeOscillators = [];
+    let musicTimeout = null;
+
+    function startCyberpunkMusic() {
+      function scheduleBass(startTime) {
+        const bassPattern = [60, 62, 64, 65, 67, 69, 71, 72];
+        for (let i = 0; i < loopLength; i += 0.25) {
+          let noteTime = startTime + i;
+          let freq = bassPattern[Math.floor(i / 2) % bassPattern.length] * 2;
+          const osc = audioCtx.createOscillator();
+          osc.type = "sawtooth";
+          osc.frequency.setValueAtTime(freq, noteTime);
+          const gainNode = audioCtx.createGain();
+          gainNode.gain.setValueAtTime(0, noteTime);
+          gainNode.gain.linearRampToValueAtTime(0.9, noteTime + 0.01);
+          gainNode.gain.exponentialRampToValueAtTime(0.001, noteTime + 0.25);
+          osc.connect(gainNode).connect(audioCtx.destination);
+          osc.start(noteTime);
+          osc.stop(noteTime + 0.3);
+          activeOscillators.push(osc);
+        }
+      }
+
+      function scheduleLead(startTime) {
+        for (let j = 0; j < 20; j++) {
+          let eventTime = startTime + Math.random() * loopLength;
+          let freq = 400 + Math.random() * 300;
+          const osc = audioCtx.createOscillator();
+          osc.type = "sawtooth";
+          osc.frequency.setValueAtTime(freq, eventTime);
+          const gainNode = audioCtx.createGain();
+          gainNode.gain.setValueAtTime(0, eventTime);
+          gainNode.gain.linearRampToValueAtTime(0.6, eventTime + 0.005);
+          gainNode.gain.exponentialRampToValueAtTime(0.001, eventTime + 0.2);
+          osc.connect(gainNode).connect(audioCtx.destination);
+          osc.start(eventTime);
+          osc.stop(eventTime + 0.25);
+          activeOscillators.push(osc);
+        }
+      }
+
+      function schedulePad(startTime) {
+        const chord = [110, 130.81, 164.81];
+        for (let i = 0; i < loopLength; i += 4) {
+          let chordTime = startTime + i;
+          chord.forEach(freq => {
+            const osc = audioCtx.createOscillator();
+            osc.type = "sine";
+            osc.frequency.setValueAtTime(freq * 2, chordTime);
+            const gainNode = audioCtx.createGain();
+            gainNode.gain.setValueAtTime(0, chordTime);
+            gainNode.gain.linearRampToValueAtTime(0.5, chordTime + 0.5);
+            gainNode.gain.linearRampToValueAtTime(0.5, chordTime + 3);
+            gainNode.gain.linearRampToValueAtTime(0.001, chordTime + 3.5);
+            osc.connect(gainNode).connect(audioCtx.destination);
+            osc.start(chordTime);
+            osc.stop(chordTime + 4);
+            activeOscillators.push(osc);
+          });
+        }
+      }
+
+      function schedulePercussion(startTime) {
+        for (let i = 0; i < loopLength; i += 0.5) {
+          let kickTime = startTime + i;
+          const osc = audioCtx.createOscillator();
+          osc.type = "sine";
+          osc.frequency.setValueAtTime(100, kickTime);
+          osc.frequency.exponentialRampToValueAtTime(50, kickTime + 0.05);
+          const gainNode = audioCtx.createGain();
+          gainNode.gain.setValueAtTime(1, kickTime);
+          gainNode.gain.exponentialRampToValueAtTime(0.001, kickTime + 0.15);
+          osc.connect(gainNode).connect(audioCtx.destination);
+          osc.start(kickTime);
+          osc.stop(kickTime + 0.2);
+          activeOscillators.push(osc);
+
+          if (i % 1 === 0.5) {
+            const noiseTime = startTime + i;
+            const bufferSize = audioCtx.sampleRate * 0.05;
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let j = 0; j < bufferSize; j++) data[j] = Math.random() * 2 - 1;
+            const noiseSource = audioCtx.createBufferSource();
+            noiseSource.buffer = buffer;
+            const gainNode2 = audioCtx.createGain();
+            gainNode2.gain.setValueAtTime(0.7, noiseTime);
+            gainNode2.gain.exponentialRampToValueAtTime(0.001, noiseTime + 0.1);
+            noiseSource.connect(gainNode2).connect(audioCtx.destination);
+            noiseSource.start(noiseTime);
+            noiseSource.stop(noiseTime + 0.15);
+            activeOscillators.push(noiseSource);
+          }
+        }
+      }
+
+      function scheduleChord(startTime) {
+        const chord = [220, 261.63, 329.63];
+        for (let i = 0; i < loopLength; i += 8) {
+          let chordTime = startTime + i;
+          chord.forEach(freq => {
+            const osc = audioCtx.createOscillator();
+            osc.type = "triangle";
+            osc.frequency.setValueAtTime(freq, chordTime);
+            const gainNode = audioCtx.createGain();
+            gainNode.gain.setValueAtTime(0, chordTime);
+            gainNode.gain.linearRampToValueAtTime(0.7, chordTime + 0.01);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, chordTime + 0.4);
+            osc.connect(gainNode).connect(audioCtx.destination);
+            osc.start(chordTime);
+            osc.stop(chordTime + 0.45);
+            activeOscillators.push(osc);
+          });
+        }
+      }
+
+      function scheduleArpeggio(startTime) {
+        const arpeggioNotes = [330, 392, 440, 494];
+        for (let i = 0; i < loopLength; i += 10) {
+          let arpStart = startTime + i;
+          arpeggioNotes.forEach((freq, idx) => {
+            let noteTime = arpStart + idx * 0.2;
+            const osc = audioCtx.createOscillator();
+            osc.type = "square";
+            osc.frequency.setValueAtTime(freq, noteTime);
+            const gainNode = audioCtx.createGain();
+            gainNode.gain.setValueAtTime(0, noteTime);
+            gainNode.gain.linearRampToValueAtTime(0.5, noteTime + 0.01);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, noteTime + 0.15);
+            osc.connect(gainNode).connect(audioCtx.destination);
+            osc.start(noteTime);
+            osc.stop(noteTime + 0.18);
+            activeOscillators.push(osc);
+          });
+        }
+      }
+
+      function scheduleHiHats(startTime) {
+        for (let i = 0; i < loopLength; i += 0.25) {
+          let hatTime = startTime + i;
+          const bufferSize = audioCtx.sampleRate * 0.03;
+          const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+          const data = buffer.getChannelData(0);
+          for (let j = 0; j < bufferSize; j++) data[j] = Math.random() * 2 - 1;
+          const noiseSource = audioCtx.createBufferSource();
+          noiseSource.buffer = buffer;
+          const gainNode = audioCtx.createGain();
+          gainNode.gain.setValueAtTime(0.3, hatTime);
+          gainNode.gain.exponentialRampToValueAtTime(0.001, hatTime + 0.05);
+          noiseSource.connect(gainNode).connect(audioCtx.destination);
+          noiseSource.start(hatTime);
+          noiseSource.stop(hatTime + 0.06);
+          activeOscillators.push(noiseSource);
+        }
+      }
+
+      function scheduleLoop(startTime) {
+        if (isDead || isVictorious) return;
+        scheduleBass(startTime);
+        scheduleLead(startTime);
+        schedulePad(startTime);
+        schedulePercussion(startTime);
+        scheduleChord(startTime);
+        scheduleArpeggio(startTime);
+        scheduleHiHats(startTime);
+        musicTimeout = setTimeout(() => scheduleLoop(startTime + loopLength), loopLength * 1000);
+      }
+
+      audioCtx.resume();
+      scheduleLoop(audioCtx.currentTime + 0.1);
+    }
+
+    function stopCyberpunkMusic() {
+      activeOscillators.forEach(osc => {
+        try { osc.stop(); } catch (e) {}
+      });
+      activeOscillators = [];
+      if (musicTimeout) clearTimeout(musicTimeout);
+      audioCtx.suspend();
+    }
+
+    let musicStarted = false;
+    document.addEventListener('click', () => {
+      if (!isMobile && !sceneLoaded || musicStarted || isDead) return;
+      startCyberpunkMusic();
+      musicStarted = true;
+    });
+  </script>
+</body>
+</html>
