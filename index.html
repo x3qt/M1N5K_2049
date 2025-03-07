@@ -179,10 +179,126 @@
     const carSpeed = 1.35;
     const pedestrianSpeed = 0.45;
     const angryPedestrianSpeed = 0.75;
-    const airplaneSpeed = 0.9;
-    const numCars = 120;
-    const numPedestrians = 150;
-    const numAirplanes = 15;
+// Game parameters and configuration
+const config = {
+  airplaneSpeed: 0.9,
+  numCars: 120,
+  numPedestrians: 150,
+  numAirplanes: 15,
+  pedestrian: {
+    accuracy: 0.15,
+    alertDistance: 120,
+    shootingInterval: 30,
+    shootingRange: 120
+  },
+  carExplosionRadius: 30,
+  wall: {
+    height: 450,
+    enableAnimation: true,
+    particleDensity: 4
+  }
+};
+
+// Utility function for random selection
+function randomFromArray(array) {
+  return array[Math.floor(Math.random() * array.length)];
+}
+
+// Neon ads spawning function (optimized and error-proofed)
+function spawnNeonAdsByBuildings(buildings, scene, font, brandNames, cyberpunkColors, neonAds) {
+  if (!font) {
+    console.warn('Font not loaded, neon ads skipped.');
+    return;
+  }
+
+  buildings.forEach(building => {
+    const box = building.userData.box;
+    if (!box) return;
+
+    const center = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
+    const textSize = Math.max(3, size.x / 20);
+
+    const brand = randomFromArray(brandNames);
+    const textGeo = new THREE.TextGeometry(brand, {
+      font: font,
+      size: textSize,
+      height: textSize / 3,
+      curveSegments: 4 // Enhanced curve segments for better visuals
+    });
+
+    textGeo.center();
+    textGeo.computeBoundingBox();
+
+    const halfHeight = textGeo.boundingBox.max.y;
+    const adPosition = new THREE.Vector3(center.x, box.max.y + halfHeight + 10, center.z);
+
+    const emissiveColor = randomFromArray(cyberpunkColors);
+    const textMaterial = new THREE.MeshPhongMaterial({
+      color: emissiveColor,
+      emissive: emissiveColor,
+      emissiveIntensity: 1.2 // Enhanced for better neon effect
+    });
+
+    const textMesh = new THREE.Mesh(textGeo, textMaterial);
+    textMesh.position.copy(adPosition);
+    textMesh.rotation.y = Math.random() * Math.PI * 2;
+
+    scene.add(textMesh);
+    neonAds.push(textMesh);
+  });
+}
+
+// Overpass API query (formatted and easier to update bounds)
+const overpassBounds = {
+  south: 53.894109,
+  west: 27.541987,
+  north: 53.907147,
+  east: 27.570987
+};
+
+const overpassQuery = `
+[out:json][timeout:25];
+(
+  way["highway"](${overpassBounds.south},${overpassBounds.west},${overpassBounds.north},${overpassBounds.east});
+  way["building"](${overpassBounds.south},${overpassBounds.west},${overpassBounds.north},${overpassBounds.east});
+  way["waterway"](${overpassBounds.south},${overpassBounds.west},${overpassBounds.north},${overpassBounds.east});
+);
+(._;>;);
+out body;
+`;
+
+// Intro loading animation (optimized and encapsulated)
+const introLoader = {
+  interval: null,
+  dotCount: 1,
+  start(introDiv) {
+    if (!introDiv) {
+      console.error('Intro div not found.');
+      return;
+    }
+    introDiv.classList.add('loading');
+    this.interval = setInterval(() => {
+      this.dotCount = (this.dotCount % 3) + 1;
+      introDiv.innerText = `1NT3RC3PT1NG C0NN3CT10N${'.'.repeat(this.dotCount)}`;
+    }, 500);
+  },
+  stop(introDiv) {
+    clearInterval(this.interval);
+    introDiv.classList.remove('loading');
+    introDiv.innerText = '';
+  }
+};
+
+// Initialize scene-loaded flag
+let sceneLoaded = false;
+
+// Usage Example (call this once your assets are ready):
+// introLoader.start(document.getElementById('intro'));
+// After loading complete:
+// introLoader.stop(document.getElementById('intro'));
+// sceneLoaded = true;
+
 
     // Entities
     let buildings = [], roads = [], cars = [], pedestrians = [], neonAds = [], explosions = [], airplanes = [], walls = [];
