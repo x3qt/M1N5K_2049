@@ -136,8 +136,8 @@
     }
     #fly-button {
       position: absolute;
-      right: 20px; /* Swapped to right */
-      top: 33%; /* Changed to 1/3 from top */
+      right: 20px;
+      top: 33%;
       transform: translateY(-50%);
       width: 60px;
       height: 60px;
@@ -145,13 +145,13 @@
       color: white;
       text-align: center;
       line-height: 60px;
-      border-radius: 50%; /* Made round */
+      border-radius: 50%;
       touch-action: none;
     }
     #map-button {
       position: absolute;
-      left: 20px; /* Swapped to left */
-      top: 33%; /* Changed to 1/3 from top */
+      left: 20px;
+      top: 33%;
       transform: translateY(-50%);
       width: 60px;
       height: 60px;
@@ -159,7 +159,7 @@
       color: white;
       text-align: center;
       line-height: 60px;
-      border-radius: 50%; /* Made round */
+      border-radius: 50%;
       touch-action: none;
     }
     .control-button {
@@ -213,7 +213,8 @@
     camera.rotation.order = 'YXZ';
     const playerHeight = 4;
     const playerRadius = 0.25;
-    camera.position.set(0, playerHeight, 200);
+    // Initial position will be set after cityBounds is calculated
+    camera.position.set(0, playerHeight, 0);
     const birdCamera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 10000);
     birdCamera.rotation.order = 'YXZ';
 
@@ -268,13 +269,13 @@
     let walls = [];
 
     let killCount = 0;
-   function updateKillCount() {
-       const percentage = Math.min(100, Math.floor((killCount / carsToBreach) * 100));
-       document.getElementById("killCount").innerText = "BR34CH1NG: " + percentage + "%";
-       if (percentage >= 100 && !isDead) {
-           showVictoryScreen();
-       }
-   }
+    function updateKillCount() {
+      const percentage = Math.min(100, Math.floor((killCount / carsToBreach) * 100));
+      document.getElementById("killCount").innerText = "BR34CH1NG: " + percentage + "%";
+      if (percentage >= 100 && !isDead) {
+        showVictoryScreen();
+      }
+    }
 
     let playerHealth = 100;
     let isDead = false;
@@ -365,12 +366,9 @@
           height: textSize / 3,
           curveSegments: 2
         });
-        // Center the geometry to place its origin at the text's center
         textGeo.center();
-        // Compute bounding box to determine the text's height after centering
         textGeo.computeBoundingBox();
-        const halfHeight = textGeo.boundingBox.max.y; // y ranges from -halfHeight to +halfHeight
-        // Position the center of the ad above the building, with a gap
+        const halfHeight = textGeo.boundingBox.max.y;
         const adPosition = new THREE.Vector3(center.x, box.max.y + halfHeight + 10, center.z);
         const textMaterial = new THREE.MeshPhongMaterial({
           color: cyberpunkColors[Math.floor(Math.random() * cyberpunkColors.length)],
@@ -379,7 +377,7 @@
         });
         const textMesh = new THREE.Mesh(textGeo, textMaterial);
         textMesh.position.copy(adPosition);
-        textMesh.rotation.y = Math.random() * Math.PI * 2; // Initial random rotation
+        textMesh.rotation.y = Math.random() * Math.PI * 2;
         scene.add(textMesh);
         neonAds.push(textMesh);
       });
@@ -407,6 +405,35 @@
 
     const buildingHeightMin = 25;
     const buildingHeightMax = 75;
+
+    function findSafeSpawnPosition(center) {
+      let spawnPos = center.clone();
+      spawnPos.y = playerHeight;
+      let isSafe = false;
+      let attempts = 0;
+      const maxAttempts = 50;
+      const stepDistance = 10;
+
+      while (!isSafe && attempts < maxAttempts) {
+        const raycaster = new THREE.Raycaster(spawnPos, new THREE.Vector3(0, -1, 0), 0, playerHeight + 1);
+        const intersects = raycaster.intersectObjects(buildings, true);
+        isSafe = intersects.length === 0 || intersects[0].distance > playerHeight;
+
+        if (!isSafe) {
+          const angle = Math.random() * Math.PI * 2;
+          spawnPos.x = center.x + Math.cos(angle) * stepDistance * attempts;
+          spawnPos.z = center.z + Math.sin(angle) * stepDistance * attempts;
+          attempts++;
+        }
+      }
+
+      if (!isSafe) {
+        console.warn("Could not find a safe spawn position after max attempts. Using center as fallback.");
+        spawnPos = center.clone();
+        spawnPos.y = playerHeight;
+      }
+      return spawnPos;
+    }
 
     fetch("https://overpass-api.de/api/interpreter", {
       method: "POST",
@@ -599,6 +626,11 @@
         addParticleSystemToWall(westWall, 'z');
 
         spawnAirplanes();
+
+        // Set player spawn position at map center, outside buildings
+        const cityCenter = cityBounds.getCenter(new THREE.Vector3());
+        const safeSpawnPos = findSafeSpawnPosition(cityCenter);
+        camera.position.set(safeSpawnPos.x, safeSpawnPos.y, safeSpawnPos.z);
 
         sceneLoaded = true;
 
@@ -829,7 +861,7 @@
         };
         airplanes.push(airplane);
         scene.add(airplane);
-      };
+      }
     }
 
     function chooseNewRoad(obj, distance) {
@@ -1085,33 +1117,28 @@
       document.getElementById('reticle').style.display = 'none';
       if (isMobile) document.getElementById('controls').style.display = 'none';
 
-      // Explode all cars
       cars.forEach(car => {
         createExplosion(car.position.x, car.position.y, car.position.z);
         scene.remove(car);
       });
       cars = [];
 
-      // Explode all pedestrians
       pedestrians.forEach(ped => {
         createPedestrianExplosion(ped.position.x, ped.position.y, ped.position.z);
         scene.remove(ped);
       });
       pedestrians = [];
 
-      // Remove flying cars (airplanes)
       airplanes.forEach(airplane => {
         scene.remove(airplane);
       });
       airplanes = [];
 
-      // Remove neon ads
       neonAds.forEach(ad => {
         scene.remove(ad);
       });
       neonAds = [];
 
-      // Convert buildings to wireframe meshes (excluding walls)
       buildings.forEach(building => {
         if (!walls.includes(building)) {
           const wireframeMaterial = new THREE.MeshBasicMaterial({
@@ -1123,7 +1150,6 @@
         }
       });
 
-      // Make city walls and their particle effects invisible
       walls.forEach(wall => {
         wall.visible = false;
       });
@@ -1235,89 +1261,89 @@
       });
     }
 
-function shoot() {
-    playLaserSound();
-    const forwardDir = camera.getWorldDirection(new THREE.Vector3());
-    const localOffset = new THREE.Vector3(playerLaserOriginX, playerLaserOriginY, playerLaserOriginZ);
-    const worldOffset = localOffset.clone().applyQuaternion(camera.quaternion);
-    const origin = camera.position.clone().add(worldOffset);
-    const rayDirection = forwardDir;
-    const raycaster = new THREE.Raycaster(origin, rayDirection);
-    const targets = cars.concat(pedestrians);
-    const targetIntersects = raycaster.intersectObjects(targets, true);
-    const buildingIntersects = raycaster.intersectObjects(buildings, true);
+    function shoot() {
+      playLaserSound();
+      const forwardDir = camera.getWorldDirection(new THREE.Vector3());
+      const localOffset = new THREE.Vector3(playerLaserOriginX, playerLaserOriginY, playerLaserOriginZ);
+      const worldOffset = localOffset.clone().applyQuaternion(camera.quaternion);
+      const origin = camera.position.clone().add(worldOffset);
+      const rayDirection = forwardDir;
+      const raycaster = new THREE.Raycaster(origin, rayDirection);
+      const targets = cars.concat(pedestrians);
+      const targetIntersects = raycaster.intersectObjects(targets, true);
+      const buildingIntersects = raycaster.intersectObjects(buildings, true);
 
-    let laserEndPoint;
-    let hitTarget = null;
+      let laserEndPoint;
+      let hitTarget = null;
 
-    if (buildingIntersects.length > 0 && (targetIntersects.length === 0 || buildingIntersects[0].distance < targetIntersects[0].distance)) {
+      if (buildingIntersects.length > 0 && (targetIntersects.length === 0 || buildingIntersects[0].distance < targetIntersects[0].distance)) {
         laserEndPoint = buildingIntersects[0].point;
-    } else if (targetIntersects.length > 0) {
+      } else if (targetIntersects.length > 0) {
         laserEndPoint = targetIntersects[0].point;
         hitTarget = targetIntersects[0].object;
-    } else {
+      } else {
         laserEndPoint = origin.clone().add(rayDirection.multiplyScalar(1000));
-    }
+      }
 
-    const direction = new THREE.Vector3().subVectors(laserEndPoint, origin).normalize();
-    const length = origin.distanceTo(laserEndPoint);
-    const midpoint = new THREE.Vector3().addVectors(origin, direction.clone().multiplyScalar(length / 2));
-    const laserGeometry = new THREE.CylinderGeometry(0.2, 0.2, length, 8);
-    const laserMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-    const laser = new THREE.Mesh(laserGeometry, laserMaterial);
-    laser.position.copy(midpoint);
-    const quaternion = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction);
-    laser.setRotationFromQuaternion(quaternion);
-    scene.add(laser);
-    setTimeout(() => scene.remove(laser), 500);
+      const direction = new THREE.Vector3().subVectors(laserEndPoint, origin).normalize();
+      const length = origin.distanceTo(laserEndPoint);
+      const midpoint = new THREE.Vector3().addVectors(origin, direction.clone().multiplyScalar(length / 2));
+      const laserGeometry = new THREE.CylinderGeometry(0.2, 0.2, length, 8);
+      const laserMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+      const laser = new THREE.Mesh(laserGeometry, laserMaterial);
+      laser.position.copy(midpoint);
+      const quaternion = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction);
+      laser.setRotationFromQuaternion(quaternion);
+      scene.add(laser);
+      setTimeout(() => scene.remove(laser), 500);
 
-    if (hitTarget) {
+      if (hitTarget) {
         let obj = hitTarget;
         while (obj && !obj.userData.type && obj.parent) obj = obj.parent;
         if (obj && ["car", "pedestrian"].includes(obj.userData.type)) {
-            const hitPosition = obj.position.clone();
-            let newlyAngry = 0;
+          const hitPosition = obj.position.clone();
+          let newlyAngry = 0;
 
-            if (obj.userData.type === "car") {
-                scene.remove(obj);
-                const idx = cars.indexOf(obj);
-                if (idx > -1) cars.splice(idx, 1);
-                createExplosion(obj.position.x, obj.position.y, obj.position.z);
-                killCount += 1;
-                updateKillCount();
-                pedestrians.forEach(ped => {
-                    if (ped.position.distanceTo(hitPosition) < pedestrianAlertDistance && !ped.userData.isAngry) {
-                        ped.userData.isAngry = true;
-                        ped.userData.shootTimer = 0;
-                        newlyAngry++;
-                    }
-                });
-            } else if (obj.userData.type === "pedestrian") {
-                pedestrians.forEach(ped => {
-                    if (ped !== obj && ped.position.distanceTo(hitPosition) < pedestrianAlertDistance && !ped.userData.isAngry) {
-                        ped.userData.isAngry = true;
-                        ped.userData.shootTimer = 0;
-                        newlyAngry++;
-                    }
-                });
-                scene.remove(obj);
-                const idx = pedestrians.indexOf(obj);
-                if (idx > -1) pedestrians.splice(idx, 1);
-                createPedestrianExplosion(obj.position.x, obj.position.y, obj.position.z);
-                playerHealth = Math.min(100, playerHealth + 1);
-                healthDisplay.innerText = 'C0NN3CT10N: ' + playerHealth + '%';
-            }
+          if (obj.userData.type === "car") {
+            scene.remove(obj);
+            const idx = cars.indexOf(obj);
+            if (idx > -1) cars.splice(idx, 1);
+            createExplosion(obj.position.x, obj.position.y, obj.position.z);
+            killCount += 1;
+            updateKillCount();
+            pedestrians.forEach(ped => {
+              if (ped.position.distanceTo(hitPosition) < pedestrianAlertDistance && !ped.userData.isAngry) {
+                ped.userData.isAngry = true;
+                ped.userData.shootTimer = 0;
+                newlyAngry++;
+              }
+            });
+          } else if (obj.userData.type === "pedestrian") {
+            pedestrians.forEach(ped => {
+              if (ped !== obj && ped.position.distanceTo(hitPosition) < pedestrianAlertDistance && !ped.userData.isAngry) {
+                ped.userData.isAngry = true;
+                ped.userData.shootTimer = 0;
+                newlyAngry++;
+              }
+            });
+            scene.remove(obj);
+            const idx = pedestrians.indexOf(obj);
+            if (idx > -1) pedestrians.splice(idx, 1);
+            createPedestrianExplosion(obj.position.x, obj.position.y, obj.position.z);
+            playerHealth = Math.min(100, playerHealth + 1);
+            healthDisplay.innerText = 'C0NN3CT10N: ' + playerHealth + '%';
+          }
 
-            if (newlyAngry > 0 && huntingPedestrians === 0) {
-                showMessage("Warning: Enforcers are tracing you!");
-            }
-            huntingPedestrians += newlyAngry;
+          if (newlyAngry > 0 && huntingPedestrians === 0) {
+            showMessage("Warning: Enforcers are tracing you!");
+          }
+          huntingPedestrians += newlyAngry;
         }
+      }
     }
-}
 
     function updateTraffic() {
-      if (isVictorious) return; // Stop traffic updates after victory
+      if (isVictorious) return;
       cars.forEach(car => {
         const road = car.userData.road;
         if (!road || road.points.length < 2) return;
@@ -1560,8 +1586,6 @@ function shoot() {
     const rightJoystick = document.getElementById('right-joystick');
     const flyButton = document.getElementById('fly-button');
     const mapButton = document.getElementById('map-button');
-    const upButton = document.getElementById('up-button');
-    const downButton = document.getElementById('down-button');
 
     function updateJoystickDirection(touch, joystick, directionObj) {
       const rect = joystick.getBoundingClientRect();
